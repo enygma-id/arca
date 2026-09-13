@@ -1,0 +1,54 @@
+{
+  "purpose": "Initial ARCA third-party license provenance snapshot",
+  "audited_implementation": [
+    "bim2gis_geojson_first_v0.12.1",
+    "ifc_folder_to_multilod_geojson_v0.2",
+    "skp_folder_to_ifc",
+    "skp_to_ifc_fixed"
+  ],
+  "direct_dependencies": {
+    "openskp": {
+      "reference_version": "1.2.0",
+      "relationship": "direct",
+      "license": "MIT",
+      "note": "Founding SKP adapter code explicitly targets OpenSKP 1.2.x compatibility."
+    },
+    "numpy": {
+      "license_snapshot_version": "2.3.5",
+      "relationship": "direct",
+      "license": "BSD-3-Clause plus bundled notices"
+    },
+    "shapely": {
+      "license_snapshot_version": "2.1.2",
+      "relationship": "direct",
+      "license": "BSD-3-Clause"
+    }
+  },
+  "transitive_or_native_dependencies": {
+    "trimesh": {
+      "license_snapshot_version": "4.11.1",
+      "relationship": "OpenSKP runtime dependency; not directly imported by audited ARCA files",
+      "license": "MIT"
+    },
+    "GEOS": {
+      "relationship": "native geometry engine bundled/used by Shapely distributions where applicable",
+      "license": "LGPL-2.1 in captured Shapely binary notice"
+    }
+  },
+  "standards": [
+    "IFC4",
+    "GeoJSON"
+  ],
+  "note": "Snapshot/reference versions identify license provenance and audited compatibility context; they are not dependency pins.",
+  "files": [
+    "MANIFEST.json",
+    "README.md",
+    "licenses/numpy-LICENSE.txt",
+    "licenses/openskp-LICENSE.txt",
+    "licenses/shapely-GEOS-LICENSE.txt",
+    "licenses/shapely-LICENSE.txt",
+    "licenses/trimesh-LICENSE.txt",
+    "standards/GEOJSON.md",
+    "standards/IFC.md"
+  ]
+}
