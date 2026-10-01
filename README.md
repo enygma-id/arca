@@ -97,6 +97,33 @@ ARCA generalization
 GIS-native output
 ```
 
+## Quickstart
+
+End users can install the engine and server with pip:
+
+```sh
+python -m venv .venv
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# Linux/macOS: source .venv/bin/activate
+pip install ".[server]"
+arca serve
+```
+
+Contributors can use the same commands on Windows, Linux, and macOS without activating a shell:
+
+```sh
+uv sync --extra dev
+uv run arca serve
+
+# Convert a BIM model (IFC or SKP) directly via CLI
+uv run arca run input_model.ifc --out outputs/
+
+# Inspect embedded georeferencing without full conversion
+uv run arca inspect input_model.ifc
+```
+
+`uv` creates and uses `.venv`. Shell activation is optional.
+
 ## Current Representation Direction
 
 The founding prototype explores three practical representation layers:

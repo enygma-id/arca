@@ -22,6 +22,12 @@
       "license_snapshot_version": "2.1.2",
       "relationship": "direct",
       "license": "BSD-3-Clause"
+    },
+    "pyproj": {
+      "license_snapshot_version": "3.7.2",
+      "relationship": "direct",
+      "license": "MIT (pyproj) / PROJ license",
+      "note": "Provides geodetic projection and UTM transforms in engine/georef.py."
     }
   },
   "transitive_or_native_dependencies": {
@@ -35,6 +41,26 @@
       "license": "LGPL-2.1 in captured Shapely binary notice"
     }
   },
+  "frontend_vendor_dependencies": {
+    "deck.gl": {
+      "bundled_version": "9.3.7",
+      "relationship": "vendored offline frontend library",
+      "license": "Apache-2.0 / MIT",
+      "path": "src/arca/server/static/vendor/deck.gl-9.3.7.min.js"
+    },
+    "maplibre-gl": {
+      "bundled_version": "6.9.0",
+      "relationship": "vendored offline frontend library",
+      "license": "BSD-3-Clause",
+      "path": "src/arca/server/static/vendor/maplibre-gl-6.9.0.mjs"
+    },
+    "three": {
+      "bundled_version": "0.185.0",
+      "relationship": "vendored offline frontend library",
+      "license": "MIT",
+      "path": "src/arca/server/static/vendor/three-0.185.0.module.js"
+    }
+  },
   "standards": [
     "IFC4",
     "GeoJSON"
@@ -43,11 +69,16 @@
   "files": [
     "MANIFEST.json",
     "README.md",
-    "licenses/numpy-LICENSE.txt",
-    "licenses/openskp-LICENSE.txt",
-    "licenses/shapely-GEOS-LICENSE.txt",
-    "licenses/shapely-LICENSE.txt",
-    "licenses/trimesh-LICENSE.txt",
+    "deck.gl/LICENSE",
+    "maplibre-gl/LICENSE",
+    "numpy/LICENSE.txt",
+    "openskp/LICENSE",
+    "pyproj/LICENSE",
+    "pyproj/LICENSE_proj",
+    "shapely/LICENSE.txt",
+    "shapely/LICENSE_GEOS",
+    "three/LICENSE",
+    "trimesh/LICENSE",
     "standards/GEOJSON.md",
     "standards/IFC.md"
   ]

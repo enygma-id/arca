@@ -66,10 +66,10 @@ ARCA core is not responsible for forcing one specific:
 
 Those are downstream integrations.
 
-## First Code Commit Direction
+## Consolidated Package Structure
 
-The current working scripts will be consolidated into one coherent software
-package rather than published permanently as unrelated one-off scripts.
+The engine is consolidated into the `arca` package:
 
-The founding documentation intentionally defines the architecture before that
-packaging is frozen.
+- `arca.engine`: STEP ISO-10303-21 parser, geodesic georeferencing, BRep/tessellation geometry graph, and LOD 1.3 plateaus;
+- `arca.server`: web Studio API and lightweight browser spatial viewer;
+- `arca.cli`: unified CLI command entry point (`arca run`, `arca inspect`, `arca serve`).

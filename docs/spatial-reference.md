@@ -23,40 +23,38 @@ WGS84-positioned GeoJSON derivative
 This is useful for exercising GIS placement, but it is not the same as fully
 reading authoritative IFC georeferencing.
 
-## Current Known Limitation
+## IFC Georeferencing Support
 
-The founding prototype does not yet automatically parse the full IFC
-georeferencing stack, including fields/entities such as:
+ARCA resolves standard buildingSMART IFC4 georeferencing entities directly:
 
-- `IfcMapConversion`;
-- `IfcProjectedCRS`;
-- `IfcSite` reference latitude/longitude;
-- authoritative projected-coordinate metadata.
+- `IfcMapConversion` (Eastings, Northings, OrthogonalHeight, XAxisAbscissa, XAxisOrdinate, Scale);
+- `IfcProjectedCRS` (EPSG code, projected coordinate system name);
+- `IfcSite` (compound angle latitude/longitude and site elevation);
+- `IfcUnitAssignment` / `IfcSIUnit` (length unit resolution and metric scale factor).
 
-Therefore:
+Projections use high-precision Karney (2011) series without requiring external C dependencies.
 
-- ARCA must not claim automatic preservation of IFC georeferencing yet;
-- user-provided placement should be identified as user-provided;
-- geographic authority must not be inferred from a convenient default anchor.
-
-## Intended IFC Behavior
-
-When authoritative IFC georeferencing is present, the long-term ARCA behavior
-should be:
+When authoritative georeferencing is present:
 
 ```text
-IFC geometry
+IFC geometry (normalized to meters)
 +
 IFC CRS / map conversion / site reference
         ↓
-resolved spatial transform
+Karney geodesic transform
         ↓
 GIS-native output
 +
-CRS provenance
-+
-transform provenance
+CRS & transform provenance
 ```
+
+## Fallback Placement
+
+When an input model lacks embedded georeferencing:
+
+- ARCA falls back to user-supplied anchor coordinates (`--anchor-lon`, `--anchor-lat`, `--crs`);
+- user-provided placement is explicitly tagged as `cli_anchor_fallback` in output metadata;
+- geographic authority is not falsely claimed.
 
 ## SKP Behavior
 

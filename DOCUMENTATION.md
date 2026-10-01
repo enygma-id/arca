@@ -15,6 +15,7 @@
 
 - [Rationale](docs/rationale.md)
 - [Architecture](docs/architecture.md)
+- [Method & Algorithms](docs/method.md)
 - [GIS-Native Principles](docs/gis-native-principles.md)
 - [Representation Profiles](docs/representation-profiles.md)
 - [Spatial Reference](docs/spatial-reference.md)

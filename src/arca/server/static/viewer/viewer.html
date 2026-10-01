@@ -1,0 +1,168 @@
+<!doctype html>
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  ARCA Multi-Asset Viewer — 3D GIS multi-asset visualization.
+  Part of ARCA Community Edition, founded and stewarded by Enygma.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>ARCA Multi-Asset Viewer</title>
+
+  <link rel="icon" type="image/x-icon" href="/static/assets/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="/static/vendor/maplibre-gl-6.9.0.css">
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css">
+  <link rel="stylesheet" href="/viewer/styles.css">
+
+  <script>
+    window.CESIUM_BASE_URL =
+      "https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/";
+  </script>
+  <script src="/static/vendor/deck.gl-9.3.7.min.js"></script>
+  <script>if (!window.deck) { var s=document.createElement('script'); s.src='https://unpkg.com/deck.gl@9.3.7/dist.min.js'; document.head.appendChild(s); }</script>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "maplibre-gl": "/static/vendor/maplibre-gl-6.9.0.mjs",
+        "three": "/static/vendor/three-0.185.0.module.js",
+        "three/addons/loaders/GLTFLoader.js": "/static/vendor/three-addons/GLTFLoader.js",
+        "three/addons/utils/BufferGeometryUtils.js": "/static/vendor/utils/BufferGeometryUtils.js",
+        "three/addons/utils/SkeletonUtils.js": "/static/vendor/utils/SkeletonUtils.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <img class="mark-logo" src="/static/assets/logo.png" alt="ARCA" width="36" height="36">
+        <div class="brand-copy">
+          <strong>ARCA</strong>
+          <span>Multi-Asset BIM to GIS Viewer</span>
+        </div>
+      </div>
+
+      <button id="mobilePanelToggle" class="mobile-panel-toggle" type="button">
+        Controls
+      </button>
+
+      <div class="top-actions">
+        <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" class="open-badge" style="text-decoration: none;" title="ARCA Source Code (AGPL-3.0-only)">AGPL-3.0 Source</a>
+        <span id="representationBadge" class="open-badge">LOD 1.3</span>
+        <button id="resetView" class="ghost-btn" type="button">Reset View</button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside id="panel" class="panel">
+        <div class="panel-head">
+          <span class="eyebrow">Viewer controls</span>
+          <h1>Multi-Asset Spatial Viewer</h1>
+          <p>
+            Load every building as a GIS representation, then inspect optional
+            GLB geometry for every configured asset.
+          </p>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Viewer</div>
+          <div class="segmented" role="group" aria-label="Rendering engine">
+            <button class="engine-btn active" data-engine="maplibre" type="button">MapLibre</button>
+            <button class="engine-btn" data-engine="deck" type="button">Deck.gl</button>
+            <button class="engine-btn" data-engine="cesium" type="button">Cesium</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <label class="field-label" for="basemapSelect">Basemap</label>
+          <select id="basemapSelect" class="select-control">
+            <option value="big">BIG Rupabumi Indonesia</option>
+            <option value="osm">OpenStreetMap</option>
+          </select>
+          <div class="note">
+            BIG is rendered above an OpenStreetMap safety layer so missing or delayed BIG tiles do not leave black gaps.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Representation</div>
+          <div class="segmented representation-segmented" role="group" aria-label="Geometry representation">
+            <button class="representation-btn active" data-representation="lod1_3" type="button">LOD 1.3</button>
+            <button id="glbButton" class="representation-btn" data-representation="glb" type="button">GLB</button>
+          </div>
+          <div id="representationHint" class="note">
+            LOD 1.3 loads GIS massing. GLB loads every configured model.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Dataset</div>
+          <dl class="facts">
+            <div><dt>Buildings</dt><dd id="metricBuildings">–</dd></div>
+            <div><dt>Loaded</dt><dd id="metricLoaded">–</dd></div>
+            <div><dt>Features</dt><dd id="metricFeatures">–</dd></div>
+            <div><dt>Vertices</dt><dd id="metricVertices">–</dd></div>
+            <div><dt>Transfer</dt><dd id="metricBytes">–</dd></div>
+            <div><dt>Load time</dt><dd id="metricLoadTime">–</dd></div>
+          </dl>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Selected asset</div>
+          <div id="selectedSummary" class="selected-summary muted">
+            Click a building to inspect its attributes.
+          </div>
+        </div>
+
+        <div id="drawingSection" class="section hidden">
+          <div class="section-title">Drawing mode</div>
+          <div class="edit-grid">
+            <label>Latitude<input id="editLatitude" type="number" step="0.000001"></label>
+            <label>Longitude<input id="editLongitude" type="number" step="0.000001"></label>
+            <label>Scale<input id="editScale" type="number" step="0.01" min="0.01"></label>
+            <label>Rotate<input id="editRotate" type="number" step="1"></label>
+          </div>
+          <div class="edit-actions">
+            <button id="applyEdit" class="ghost-btn" type="button">Apply</button>
+            <button id="saveData" class="ghost-btn" type="button">Save JSON</button>
+          </div>
+          <div class="note">
+            Open with <code>?mode=drawing</code>. MapLibre also supports direct drag
+            repositioning for the selected building.
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          <b id="engineLabel">MapLibre GL JS</b>
+          <span id="status">Loading viewer data...</span>
+          <div style="margin-top: 6px; font-size: 10px; opacity: 0.75;">
+            ARCA · AGPL-3.0-only · <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">Source Code</a>
+          </div>
+        </div>
+      </aside>
+
+      <div class="map-stage">
+        <div id="viewer"></div>
+
+        <div class="map-note">
+          <strong id="basemapLabel">Basemap</strong>
+          <span id="basemapCaption">Badan Informasi Geospasial</span>
+        </div>
+
+        <div id="assetCard" class="asset-card" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js?v=0.7.8"></script>
+</body>
+</html>

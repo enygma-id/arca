@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<!--
+  SPDX-License-Identifier: AGPL-3.0-only
+  ARCA Spatial Studio & 3D Viewer — model ingestion, georeferencing, and 3D GIS visualization.
+  Part of ARCA Community Edition, founded and stewarded by Enygma.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ARCA — Spatial Studio & 3D Viewer</title>
+
+  <!-- Favicon & Touch Icons -->
+  <link rel="icon" type="image/x-icon" href="/static/assets/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/apple-touch-icon.png">
+
+  <!-- GIS & 3D Engines: MapLibre GL JS, Cesium, Deck.gl -->
+  <link rel="stylesheet" href="/static/vendor/maplibre-gl-6.9.0.css">
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css">
+
+  <script>
+    window.CESIUM_BASE_URL = "https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/";
+  </script>
+  <script src="/static/vendor/deck.gl-9.3.7.min.js"></script>
+  <script>if (!window.deck) { var s=document.createElement('script'); s.src='https://unpkg.com/deck.gl@9.3.7/dist.min.js'; document.head.appendChild(s); }</script>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+
+  <!-- Three.js & MapLibre module map (vendored offline) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "maplibre-gl": "/static/vendor/maplibre-gl-6.9.0.mjs",
+        "three": "/static/vendor/three-0.185.0.module.js",
+        "three/addons/loaders/GLTFLoader.js": "/static/vendor/three-addons/GLTFLoader.js",
+        "three/addons/utils/BufferGeometryUtils.js": "/static/vendor/utils/BufferGeometryUtils.js",
+        "three/addons/utils/SkeletonUtils.js": "/static/vendor/utils/SkeletonUtils.js"
+      }
+    }
+  </script>
+
+  <!-- Clean Swiss Architectural Style -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- App Topbar with Unified Tab Navigation -->
+  <header class="app-topbar">
+    <div class="topbar-left">
+      <div class="brand">
+        <img class="brand-logo" src="/static/assets/logo.png" alt="ARCA" width="28" height="28">
+        <div class="brand-info">
+          <strong>ARCA</strong>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="tab-nav" role="tablist">
+        <button id="tabBtnConverter" class="tab-btn active" role="tab" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+          <span>Converter</span>
+        </button>
+        <button id="tabBtnViewer" class="tab-btn" role="tab" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          <span>3D Viewer</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="topbar-right">
+      <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" class="tag" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;" title="ARCA Source Code (AGPL-3.0-only)">
+        <span>AGPL-3.0</span>
+        <span style="opacity: 0.7;">Source</span>
+      </a>
+      <span id="representationBadge" class="tag hidden">LOD 1.3</span>
+      <button id="resetView" class="btn-sm hidden" type="button">Reset Camera</button>
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- TAB 1: CONVERTER VIEW                      -->
+  <!-- ========================================== -->
+  <main id="viewConverter" class="tab-view active">
+    <div class="container">
+      
+      <!-- Left Column: Ingestion Controls -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Model Ingestion (IFC / SKP)</h2>
+          <span class="tag">v0.2.0</span>
+        </div>
+        <div class="card-body">
+          <form id="convertForm">
+            
+            <!-- File Dropzone -->
+            <div class="dropzone" id="dropzone">
+              <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+              <div class="dropzone-title">Choose or Drag Model File</div>
+              <div class="dropzone-desc">Supports .ifc and .skp files</div>
+              <input type="file" id="fileInput" class="file-input" accept=".ifc,.skp">
+            </div>
+
+            <!-- File Preview Badge -->
+            <div class="file-preview" id="filePreview">
+              <div class="file-info" id="fileInfoArea" style="cursor: pointer;" title="Click to change file">
+                <span class="file-badge" id="fileBadge">IFC</span>
+                <div>
+                  <div class="file-name" id="fileName">-</div>
+                  <div class="file-size" id="fileSize">-</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="btn-sm" id="btnChangeFile" style="padding: 4px 8px; font-size: 11px;" title="Change file">Change</button>
+                <button type="button" class="btn-remove" id="btnRemoveFile" title="Remove file">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Auto-Georeference Inspection Banner -->
+            <div id="inspectBanner" class="inspect-banner" style="display: none;">
+              <div class="inspect-header">
+                <span class="inspect-status-badge" id="inspectBadge">Inspecting Metadata...</span>
+                <span class="inspect-detail-tag" id="inspectCRS">-</span>
+              </div>
+              <div class="inspect-body" id="inspectBody"></div>
+            </div>
+
+            <!-- Dataset Identifier -->
+            <div class="form-group">
+              <label class="form-label" for="datasetName">Dataset Name (Optional)</label>
+              <input type="text" id="datasetName" class="form-input" placeholder="Auto-generated from file name if blank">
+            </div>
+
+            <!-- Generation Mode -->
+            <div class="form-group">
+              <label class="form-label" for="generateMode">Target Output</label>
+              <select id="generateMode" class="form-select">
+                <option value="all" selected>All (Pure GeoJSON LOD 1.3 + 3D Render GLB + Viewer)</option>
+                <option value="lod1.3">Pure GeoJSON LOD 1.3 only (single building.geojson)</option>
+                <option value="glb">3D Render GLB only (model.glb)</option>
+              </select>
+            </div>
+
+            <!-- Georeference Parameter Accordion -->
+            <details class="accordion" id="georefAccordion">
+              <summary>
+                <span>Georeference Parameters (Optional Override)</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </summary>
+              <div class="accordion-body">
+                <div class="help-text" style="margin-bottom: 10px;">
+                  IFC/SKP models with internal IfcProjectedCRS/MapConversion or GeoReference are extracted automatically. Fill these fields only to override site coordinates.
+                </div>
+                <div class="form-row">
+                  <div class="form-group" style="margin-top:0;">
+                    <label class="form-label" for="anchorLon">Anchor Longitude</label>
+                    <input type="number" step="any" id="anchorLon" class="form-input" placeholder="e.g. 119.415099">
+                  </div>
+                  <div class="form-group" style="margin-top:0;">
+                    <label class="form-label" for="anchorLat">Anchor Latitude</label>
+                    <input type="number" step="any" id="anchorLat" class="form-input" placeholder="e.g. -5.149259">
+                  </div>
+                </div>
+                <div class="form-row" style="margin-top: 10px;">
+                  <div class="form-group" style="margin-top:0;">
+                    <label class="form-label" for="crs">Target CRS / EPSG</label>
+                    <input type="text" id="crs" class="form-input" placeholder="e.g. EPSG:32750">
+                  </div>
+                  <div class="form-group" style="margin-top:0;">
+                    <label class="form-label" for="rotate">Rotation (° Degrees)</label>
+                    <input type="number" step="any" id="rotate" class="form-input" placeholder="0.0">
+                  </div>
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                  <label class="form-label" for="sourceUnit">Source Length Unit</label>
+                  <select id="sourceUnit" class="form-select">
+                    <option value="auto" selected>Automatic (Read from model metadata)</option>
+                    <option value="m">Meters (m)</option>
+                    <option value="mm">Millimeters (mm)</option>
+                    <option value="cm">Centimeters (cm)</option>
+                  </select>
+                </div>
+              </div>
+            </details>
+
+            <!-- Submit Button -->
+            <button type="submit" id="btnSubmit" class="btn-primary" disabled>
+              <span class="spinner"></span>
+              <span id="btnText">Start Conversion</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Right Column: Results & History Stack -->
+      <div class="panel-stack">
+        
+        <!-- Result Card -->
+        <div class="card" id="resultCard">
+          <div class="card-header">
+            <h2 class="card-title">Conversion Results & Metrics</h2>
+            <span id="statusTag" class="tag" style="display: none;">COMPLETE</span>
+          </div>
+          <div class="card-body">
+            
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState">
+              <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              <div class="empty-state-title">No Model Processed Yet</div>
+              <div class="empty-state-desc">Select or drop an .ifc / .skp file on the left to start GIS extraction and 3D rendering.</div>
+            </div>
+
+            <!-- Status Banner -->
+            <div id="statusBanner" class="status-banner"></div>
+
+            <!-- Progress & Live Log Container -->
+            <div id="progressContainer" style="display: none; margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div id="progressStepTitle" style="font-size: 13px; font-weight: 600; color: var(--text-primary);">Starting conversion...</div>
+                <div id="progressPercent" style="font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text-secondary);">0%</div>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+              </div>
+              <div style="margin-top: 14px;">
+                <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 6px;">
+                  Real-time Execution Log
+                </div>
+                <pre class="log-box" id="liveLogBox" style="max-height: 180px; margin: 0;"></pre>
+              </div>
+            </div>
+
+            <!-- Metrics Container -->
+            <div id="metricsContainer" style="display: none;">
+              
+              <div class="metrics-grid">
+                <div class="metric-box">
+                  <div class="metric-label">Input Format</div>
+                  <div class="metric-value" id="resFormat">-</div>
+                  <div class="metric-sub" id="resGeorefMethod">-</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-label">CRS / EPSG</div>
+                  <div class="metric-value" id="resCRS">-</div>
+                  <div class="metric-sub">Coordinate System</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-label">Storey Count</div>
+                  <div class="metric-value" id="resStoreys">-</div>
+                  <div class="metric-sub">LOD 1.3 plateaus</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-label">Building Height</div>
+                  <div class="metric-value" id="resHeight">-</div>
+                  <div class="metric-sub">Meters (Z-max)</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-label">Footprint Area</div>
+                  <div class="metric-value" id="resFootprint">-</div>
+                  <div class="metric-sub">m² (base)</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-label">WGS84 Anchor</div>
+                  <div class="metric-value" id="resAnchor" style="font-size: 11px;">-</div>
+                  <div class="metric-sub">Lon, Lat</div>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="action-buttons">
+                <a id="btnDownloadGeoJSON" href="#" class="btn-action" style="display:none;" download>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  </svg>
+                  GeoJSON (LOD 1.3)
+                </a>
+                <a id="btnDownloadGLB" href="#" class="btn-action" style="display:none;" download>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  </svg>
+                  3D Model (GLB)
+                </a>
+                <button id="btnOpenViewer" type="button" class="btn-action highlight">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                  View in 3D Viewer &rarr;
+                </button>
+                <button id="btnDeleteResult" type="button" class="btn-action danger" style="display:none; color:#dc2626; border-color:#fecaca;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  Delete
+                </button>
+              </div>
+
+              <!-- Log Output Accordion -->
+              <details class="accordion" style="margin-top: 14px;">
+                <summary>
+                  <span>Engine Execution Log (ARCA stdout)</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </summary>
+                <div class="accordion-body" style="padding: 10px;">
+                  <pre class="log-box" id="logBox">-</pre>
+                </div>
+              </details>
+
+            </div>
+
+          </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Converted Models Catalog</h2>
+            <button type="button" class="btn-link" id="btnRefreshHistory" style="padding: 3px 8px; font-size: 11px;">Refresh</button>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Dataset</th>
+                  <th>Format</th>
+                  <th>Storeys</th>
+                  <th>Time</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading data...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="grid-column: 1 / -1; margin-top: 8px; font-size: 11px; color: var(--text-secondary); text-align: center;">
+        ARCA v0.2.0 · AGPL-3.0-only · <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" style="color: var(--accent); text-decoration: none;">GitHub Source Code</a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ========================================== -->
+  <!-- TAB 2: 3D SPATIAL VIEWER VIEW              -->
+  <!-- ========================================== -->
+  <div id="viewViewer" class="tab-view viewer-workspace hidden">
+    
+    <!-- Left Sidebar: Building List & Viewer Controls -->
+    <aside id="panel" class="panel">
+      
+      <!-- 1. Buildings List -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-title">Buildings List</span>
+          <span id="buildingCountBadge" class="count-tag">0</span>
+        </div>
+        <div class="search-box">
+          <input type="text" id="buildingSearchInput" class="search-input" placeholder="Search buildings...">
+        </div>
+        <div id="buildingsList" class="buildings-list">
+          <!-- Dynamic building cards loaded from data.json -->
+        </div>
+      </div>
+
+      <!-- 2. 3D Rendering Engine -->
+      <div class="panel-section">
+        <div class="section-title">3D Engine</div>
+        <div class="segmented" role="group" aria-label="Rendering engine">
+          <button class="engine-btn active" data-engine="maplibre" type="button">MapLibre</button>
+          <button class="engine-btn" data-engine="deck" type="button">Deck.gl</button>
+          <button class="engine-btn" data-engine="cesium" type="button">Cesium</button>
+        </div>
+      </div>
+
+      <!-- 3. Basemap Selection -->
+      <div class="panel-section">
+        <label class="field-label" for="basemapSelect">Basemap</label>
+        <select id="basemapSelect" class="select-control">
+          <option value="big">BIG Rupabumi Indonesia</option>
+          <option value="osm">OpenStreetMap</option>
+        </select>
+        <div class="note">
+          BIG is rendered above OpenStreetMap so missing or delayed tiles do not leave blank gaps.
+        </div>
+      </div>
+
+      <!-- 4. Geometry Representation -->
+      <div class="panel-section">
+        <div class="section-title">Geometry Representation</div>
+        <div class="segmented representation-segmented" role="group" aria-label="Geometry representation">
+          <button class="representation-btn active" data-representation="lod1_3" type="button">LOD 1.3</button>
+          <button id="glbButton" class="representation-btn" data-representation="glb" type="button">GLB</button>
+        </div>
+        <div id="representationHint" class="note">
+          LOD 1.3 loads pure GIS massing. GLB loads textured 3D detail mesh.
+        </div>
+      </div>
+
+      <!-- 5. Dataset Facts -->
+      <div class="panel-section">
+        <div class="section-title">Dataset Facts</div>
+        <dl class="facts">
+          <div><dt>Buildings</dt><dd id="metricBuildings">–</dd></div>
+          <div><dt>Loaded</dt><dd id="metricLoaded">–</dd></div>
+          <div><dt>Features</dt><dd id="metricFeatures">–</dd></div>
+          <div><dt>Vertices</dt><dd id="metricVertices">–</dd></div>
+          <div><dt>Data Size</dt><dd id="metricBytes">–</dd></div>
+          <div><dt>Load Time</dt><dd id="metricLoadTime">–</dd></div>
+        </dl>
+      </div>
+
+      <!-- 6. Selected Building Attributes -->
+      <div class="panel-section">
+        <div class="section-title">Selected Building</div>
+        <div id="selectedSummary" class="selected-summary muted">
+          Click a building on the map or list above to inspect detailed attributes.
+        </div>
+      </div>
+
+      <!-- Optional Drawing Mode for Repositioning -->
+      <div id="drawingSection" class="panel-section hidden">
+        <div class="section-title">Drawing Mode (Reposition)</div>
+        <div class="edit-grid">
+          <label>Latitude<input id="editLatitude" type="number" step="0.000001" class="form-input"></label>
+          <label>Longitude<input id="editLongitude" type="number" step="0.000001" class="form-input"></label>
+          <label>Scale<input id="editScale" type="number" step="0.01" min="0.01" class="form-input"></label>
+          <label>Rotate<input id="editRotate" type="number" step="1" class="form-input"></label>
+        </div>
+        <div class="action-buttons" style="margin-top: 8px;">
+          <button id="applyEdit" class="btn-action" type="button">Apply</button>
+          <button id="saveData" class="btn-action highlight" type="button">Save JSON</button>
+        </div>
+      </div>
+
+      <!-- Panel Footer -->
+      <div class="panel-footer">
+        <b id="engineLabel">MapLibre GL JS</b>
+        <span id="status">Loading viewer data...</span>
+        <div style="margin-top: 6px; font-size: 10px; opacity: 0.75;">
+          ARCA v0.2.0 · AGPL-3.0-only · <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">Source Code</a>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Right Map Viewport -->
+    <div class="map-stage">
+      <div id="viewer"></div>
+
+      <!-- Basemap Credit Note -->
+      <div class="map-note">
+        <strong id="basemapLabel">Basemap</strong>
+        <span id="basemapCaption">Badan Informasi Geospasial</span>
+      </div>
+
+      <!-- Floating Attribute Inspector Card -->
+      <div id="assetCard" class="asset-card" aria-live="polite"></div>
+    </div>
+
+  </div>
+
+  <!-- Client Application Scripts -->
+  <script src="/static/app.js"></script>
+  <script type="module" src="/static/viewer/app.js"></script>
+</body>
+</html>

@@ -1,14 +1,32 @@
-.DS_Store
+# Python
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+
+# Virtual environments
 .venv/
 venv/
-dist/
+env/
+
+# Packaging
 build/
+dist/
 *.egg-info/
+
+# IDE / OS
+.DS_Store
 .idea/
 .vscode/
 .env
 .env.*
+
+# Local outputs & workspaces
 outputs/
+arca_workspace/
 tmp/
+temp/

@@ -47,10 +47,12 @@ Unsupported geometry may be skipped or require future adapters.
 
 ## IFC Georeferencing
 
-Automatic extraction of authoritative IFC CRS/georeferencing is not yet
-implemented in the founding prototype.
+ARCA extracts and resolves standard buildingSMART IFC4 Georeferencing
+(`IfcProjectedCRS`, `IfcMapConversion`, and `IfcSite` DMS coordinates).
 
-Current placement uses an explicit geographic anchor.
+When an input IFC model lacks embedded georeferencing entities, ARCA falls back
+to companion JSON metadata or user-supplied anchor parameters (`--anchor-lon`,
+`--anchor-lat`, `--crs`).
 
 See [`docs/spatial-reference.md`](./docs/spatial-reference.md).
 
