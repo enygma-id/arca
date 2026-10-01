@@ -124,19 +124,14 @@ uv run arca inspect input_model.ifc
 
 `uv` creates and uses `.venv`. Shell activation is optional.
 
-## Sample Dataset
+## Sample Datasets
 
-ARCA includes a ready-to-use sample dataset for reproducible research, testing, and demonstration.
+ARCA includes ready-to-use sample datasets for reproducible research, testing, and demonstration:
 
-The sample contains:
+- **Sample Area 01 (`IFC`):** synthetic commercial building model in IFC4 format ([`samples/arca-sample-area-01/`](samples/arca-sample-area-01/))
+- **Sample Area 02 (`SKP`):** synthetic commercial building model in Trimble SketchUp format with companion georeferencing ([`samples/arca-sample-area-02/`](samples/arca-sample-area-02/))
 
-- synthetic commercial building model (`arca_synthetic_mall_10f.ifc`) created by Enygma
-
-The sample dataset is available at:
-
-[`samples/arca-sample-area-01/`](samples/arca-sample-area-01/)
-
-The sample directory includes its own documentation, model overview, SHA-256 integrity manifest, and data license.
+Each sample directory includes its own documentation, model overview, SHA-256 integrity manifest, and data license.
 
 The sample data are licensed separately from the ARCA software under **Creative Commons Attribution 4.0 International (CC BY 4.0)**.
 

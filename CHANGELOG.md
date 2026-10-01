@@ -7,7 +7,7 @@ All notable project changes should be documented here.
 ### Added
 
 - 3D planar triangulation using Newell normal and Shapely constrained Delaunay triangulation to avoid vertex stretching/distortion on concave and multi-vertex faces in GLB export.
-- Sample dataset organized under `samples/arca-sample-area-01/` with synthetic IFC input, dataset documentation, CC BY 4.0 data licensing, and SHA-256 integrity manifest.
+- Sample datasets organized under `samples/arca-sample-area-01/` (IFC) and `samples/arca-sample-area-02/` (SKP) with dataset documentation, CC BY 4.0 data licensing, and SHA-256 integrity manifests.
 - Comprehensive 3D Web Viewer Integration Guide (`docs/viewer-guide.md`) detailing standalone implementations for MapLibre GL JS, Deck.gl, and CesiumJS.
 
 ### Fixed
