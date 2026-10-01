@@ -20,6 +20,7 @@
 - [Representation Profiles](docs/representation-profiles.md)
 - [Spatial Reference](docs/spatial-reference.md)
 - [Downstream Engineering](docs/downstream-engineering.md)
+- [3D Web Viewer Integration Guide](docs/viewer-guide.md)
 - [Project History](docs/project-history.md)
 - [Licensing Model](docs/licensing.md)
 

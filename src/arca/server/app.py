@@ -211,11 +211,16 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             if not dataset or not filename:
                 self.send_error(400, "Missing dataset or file parameter")
                 return
-            target = self.workspace / "outputs" / dataset / filename
+            safe_filename = Path(filename).name
+            target = self.workspace / "outputs" / dataset / safe_filename
+            if not target.exists():
+                render_target = self.workspace / "outputs" / dataset / "render" / safe_filename
+                if render_target.exists():
+                    target = render_target
             if not target.exists():
                 self.send_error(404, f"File {filename} not found in dataset {dataset}")
                 return
-            self.send_file_response(target, download_name=filename)
+            self.send_file_response(target, download_name=safe_filename)
             return
 
         if path.startswith("/api/jobs/") and path.endswith("/events"):
@@ -323,7 +328,9 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             for d in sorted(outputs_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
                 if d.is_dir() and not d.name.startswith("."):
                     geojson_file = d / "building.geojson"
-                    glb_file = d / "model.glb"
+                    glb_file = d / "render" / "model.glb"
+                    if not glb_file.exists():
+                        glb_file = d / "model.glb"
                     meta_file = d / "metadata.json"
 
                     item = {
@@ -590,7 +597,9 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 return
 
             geojson_file = out_dir / "building.geojson"
-            glb_file = out_dir / "model.glb"
+            glb_file = out_dir / "render" / "model.glb"
+            if not glb_file.exists():
+                glb_file = out_dir / "model.glb"
 
             summary = {
                 "dataset": dataset_id,

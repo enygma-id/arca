@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import numpy as np
+import shapely
+from shapely.geometry import Polygon
 
 from .step import TARGETS
 
@@ -35,6 +37,70 @@ def normal(q: np.ndarray) -> np.ndarray:
     n = np.cross(q[1] - q[0], q[2] - q[0])
     norm_val = np.linalg.norm(n)
     return n / norm_val if norm_val else np.array([0.0, 0.0, 1.0])
+
+
+def triangulate_polygon_3d(q: np.ndarray) -> list[np.ndarray]:
+    """Triangulate a 3D planar polygon into triangles preserving boundaries and holes.
+
+    Fast path handles triangles (len == 3) and quads (len == 4).
+    Non-convex/concave polygons (len > 4) are projected onto their 2D principal plane
+    and decomposed using Shapely constrained Delaunay triangulation to prevent phantom triangles.
+    """
+    n_pts = len(q)
+    if n_pts < 3:
+        return []
+    if n_pts == 3:
+        return [q]
+    if n_pts == 4:
+        return [np.array([q[0], q[1], q[2]]), np.array([q[0], q[2], q[3]])]
+
+    # Newell normal
+    a = np.zeros(3, dtype=float)
+    for i in range(n_pts):
+        a += np.cross(q[i], q[(i + 1) % n_pts])
+    norm = np.linalg.norm(a)
+    if norm < 1e-12:
+        return []
+    n = a / norm
+
+    # Orthonormal basis (u, v) on polygon plane
+    ref = np.array([0.0, 1.0, 0.0]) if abs(n[2]) > 0.9 else np.array([0.0, 0.0, 1.0])
+    u = np.cross(n, ref)
+    u_norm = np.linalg.norm(u)
+    if u_norm < 1e-12:
+        return [np.array([q[0], q[j], q[j + 1]], dtype=float) for j in range(1, n_pts - 1)]
+    u /= u_norm
+    v = np.cross(n, u)
+
+    p0 = q[0]
+    diff = q - p0
+    coords_2d = np.column_stack([diff.dot(u), diff.dot(v)])
+
+    try:
+        poly2d = Polygon(coords_2d)
+        if not poly2d.is_valid:
+            poly2d = poly2d.buffer(0)
+        collection = shapely.constrained_delaunay_triangles(poly2d)
+        parts = collection.geoms if hasattr(collection, "geoms") else [collection]
+        result = []
+        for g in parts:
+            if not isinstance(g, Polygon):
+                continue
+            if not poly2d.covers(g.representative_point()):
+                continue
+            pts_2d = np.asarray(g.exterior.coords)[:3]
+            pts_3d = p0 + pts_2d[:, 0:1] * u + pts_2d[:, 1:2] * v
+            tri_norm = np.cross(pts_3d[1] - pts_3d[0], pts_3d[2] - pts_3d[0])
+            if np.dot(tri_norm, n) < 0:
+                pts_3d = pts_3d[[0, 2, 1]]
+            result.append(pts_3d)
+        if result:
+            return result
+    except Exception:
+        # ponytail: fallback to naive triangle fan if Shapely triangulation fails on degenerate geometry
+        pass
+
+    return [np.array([q[0], q[j], q[j + 1]], dtype=float) for j in range(1, n_pts - 1)]
 
 
 def ent(E: dict, r):

@@ -18,6 +18,7 @@ from arca.engine.geom import (
     localplacement,
     product_info,
     rep_shape_items,
+    triangulate_polygon_3d,
 )
 from arca.engine.georef import (
     GeoreferenceContext,
@@ -196,8 +197,7 @@ def preprocess(
 
         product_triangles = 0
         for q in faces_m:
-            for j in range(1, len(q) - 1):
-                tri = np.array([q[0], q[j], q[j + 1]], dtype=float)
+            for tri in triangulate_polygon_3d(q):
                 product_triangles += 1
                 triangle_count += 1
                 if glb_writer is not None:

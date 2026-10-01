@@ -3,7 +3,7 @@
 Folder ini berisi implementasi **3D GIS Multi-Engine Viewer** yang mendukung **MapLibre GL JS**, **Deck.gl**, dan **CesiumJS**.
 
 Untuk dokumentasi lengkap arsitektur dan settingan teknis layer:
-👉 Lihat panduan lengkap di: [`../../../../VIEWER_GUIDE.md`](../../../VIEWER_GUIDE.md)
+👉 Lihat panduan lengkap di: [`docs/viewer-guide.md`](../../../../docs/viewer-guide.md)
 
 ---
 

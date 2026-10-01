@@ -123,3 +123,44 @@ def test_convert_skp_to_georef_ifc_progress_callback(tmp_path, monkeypatch):
     assert any("Injecting buildingSMART georeferencing" in m for m in messages)
 
 
+def test_triangulate_polygon_3d():
+    import numpy as np
+    from shapely.geometry import Point, Polygon
+
+    from arca.engine.geom import triangulate_polygon_3d
+
+    # Degenerate
+    assert triangulate_polygon_3d(np.empty((2, 3))) == []
+
+    # Triangle
+    tri = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=float)
+    res_tri = triangulate_polygon_3d(tri)
+    assert len(res_tri) == 1
+    assert np.allclose(res_tri[0], tri)
+
+    # Quad
+    quad = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float)
+    res_quad = triangulate_polygon_3d(quad)
+    assert len(res_quad) == 2
+
+    # Concave L-shape: must not leak into empty corner (1.9, 1.9)
+    l_shape = np.array(
+        [
+            [3.0, 1.0, 5.0],
+            [1.0, 1.0, 5.0],
+            [1.0, 3.0, 5.0],
+            [0.0, 3.0, 5.0],
+            [0.0, 0.0, 5.0],
+            [3.0, 0.0, 5.0],
+        ],
+        dtype=float,
+    )
+    res_l = triangulate_polygon_3d(l_shape)
+    assert len(res_l) >= 4
+    for t in res_l:
+        poly_2d = Polygon(t[:, :2])
+        assert not poly_2d.contains(Point(1.9, 1.9))
+        assert np.allclose(t[:, 2], 5.0)
+
+
+
