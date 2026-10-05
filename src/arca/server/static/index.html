@@ -135,6 +135,32 @@
               <div class="inspect-body" id="inspectBody"></div>
             </div>
 
+            <!-- Metadata JSON Toggle & Slot -->
+            <div class="metadata-box" style="margin-top: 16px; padding: 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <label for="enableMetadata" style="font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" id="enableMetadata" style="cursor: pointer; width: 16px; height: 16px;">
+                  <span>Metadata JSON</span>
+                </label>
+                <span class="tag" style="font-size: 10px;">Optional</span>
+              </div>
+              
+              <div id="metadataUploadArea" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border);">
+                <div class="help-text" style="margin-bottom: 8px; font-size: 11px; color: var(--text-muted);">
+                  Upload companion <code>.json</code> or <code>.geojson</code> to supply georeference coordinates, CRS, rotation, or building name.
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="file" id="metadataFileInput" accept=".json,.geojson" class="form-input" style="padding: 6px 10px; font-size: 12px; flex: 1;">
+                  <button type="button" class="btn-remove" id="btnRemoveMetadata" style="display: none;" title="Remove metadata file">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+                <div id="metadataParsedStatus" style="display: none; margin-top: 8px; font-size: 11px; color: #15803d; font-weight: 500;"></div>
+              </div>
+            </div>
+
             <!-- Dataset Identifier -->
             <div class="form-group">
               <label class="form-label" for="datasetName">Dataset Name (Optional)</label>

@@ -23,6 +23,8 @@ from arca.engine.geom import (
 from arca.engine.georef import (
     GeoreferenceContext,
     extract_length_unit,
+    find_metadata_json,
+    parse_metadata_json,
     resolve_georeferencing,
     unit_factor_to_m,
 )
@@ -78,7 +80,9 @@ def preprocess(
     lod13_simplify_m: float = 0.10,
     lod13_min_component_area_m2: float = 0.25,
     crs: str | None = None,
+    rotate: float = 0.0,
     ignore_georef: bool = False,
+    metadata_info: Optional[dict] = None,
     progress_cb=None,
 ):
     if generate_mode not in {"all", "lod1.3", "glb"}:
@@ -131,6 +135,8 @@ def preprocess(
             fallback_lat=anchor_lat,
             cli_unit=source_unit,
             cli_crs=crs,
+            cli_rotate=rotate,
+            metadata_info=metadata_info,
         )
 
     to_m = georef.length_scale_to_m
@@ -316,6 +322,7 @@ def preprocess(
 
     metadata = {
         "dataset": dataset,
+        "name": (metadata_info.get("name") if metadata_info else None) or dataset,
         "input": ifc_path.name,
         "input_sha256": sha256_file(ifc_path),
         "schema": "IFC4",
@@ -593,6 +600,12 @@ def build_parser():
         help="Override or specify target CRS (e.g. EPSG:32750)",
     )
     p.add_argument(
+        "--metadata",
+        type=Path,
+        default=None,
+        help="Path to companion metadata JSON / GeoJSON file",
+    )
+    p.add_argument(
         "--ignore-georef",
         action="store_true",
         default=False,
@@ -653,20 +666,39 @@ def build_parser():
     return p
 
 
-def inspect_model_file(file_path: Path) -> dict:
+def inspect_model_file(file_path: Path, metadata_path: Optional[Path] = None) -> dict:
     file_path = Path(file_path)
     fmt = detect_input_format(file_path)
 
+    meta_file = metadata_path or find_metadata_json(file_path)
+    meta_info = parse_metadata_json(meta_file) if meta_file else None
+
     if fmt == "IFC":
         ents, _ = load_ifc(file_path)
-        georef = resolve_georeferencing(ents)
+        georef = resolve_georeferencing(ents, metadata_info=meta_info)
         detected_unit_name, detected_unit_factor = extract_length_unit(ents)
-        has_georef = georef.method in ("ifc_map_conversion", "ifc_site")
+        has_georef = georef.is_georeferenced
 
         rot_deg = round(math.degrees(georef.rotation_rad), 2) if has_georef else 0.0
 
+        if meta_info and meta_info.get("has_georef"):
+            meta_fname = Path(meta_info.get("file_path", "")).name
+            msg = f"Georeferensi terdeteksi dari metadata JSON ({meta_fname})."
+        elif has_georef:
+            msg = f"Georeferensi otomatis terdeteksi: {georef.crs_epsg or 'WGS84'} (Metode: {georef.method})."
+        else:
+            msg = "Model IFC tidak memiliki entitas georeferensi bawaan (IfcProjectedCRS / IfcSite)."
+
+        if meta_info:
+            inspected_unit = meta_info.get("unit") or "auto"
+            inspected_unit_scale = unit_factor_to_m(inspected_unit) if inspected_unit != "auto" else detected_unit_factor
+        else:
+            inspected_unit = detected_unit_name or "auto"
+            inspected_unit_scale = detected_unit_factor
+
         return {
             "format": "IFC",
+            "name": meta_info.get("name") if meta_info else None,
             "has_georef": has_georef,
             "method": georef.method,
             "crs": georef.crs_epsg if has_georef else None,
@@ -675,32 +707,40 @@ def inspect_model_file(file_path: Path) -> dict:
             "easting": round(georef.origin_easting, 3) if (has_georef and georef.origin_easting is not None) else None,
             "northing": round(georef.origin_northing, 3) if (has_georef and georef.origin_northing is not None) else None,
             "rotate": rot_deg,
-            "unit": detected_unit_name or "m",
-            "unit_scale": detected_unit_factor,
-            "message": (
-                f"Georeferensi otomatis terdeteksi: {georef.crs_epsg or 'WGS84'} (Metode: {georef.method})."
-                if has_georef
-                else "Model IFC tidak memiliki entitas georeferensi bawaan (IfcProjectedCRS / IfcSite)."
-            ),
+            "unit": inspected_unit,
+            "unit_scale": inspected_unit_scale,
+            "message": msg,
         }
     elif fmt == "SKP":
-        skp_info = extract_skp_georeference(file_path)
+        skp_info = extract_skp_georeference(file_path, metadata_info=meta_info)
         has_georef = bool(skp_info.get("has_georef", False))
+        if meta_info and meta_info.get("has_georef"):
+            meta_fname = Path(meta_info.get("file_path", "")).name
+            msg = f"Georeferensi terdeteksi dari metadata JSON ({meta_fname})."
+        elif has_georef:
+            msg = f"Georeferensi terdeteksi dari metadata SketchUp ({skp_info.get('source')})."
+        else:
+            msg = "Model SKP tidak memiliki metadata geolokasi (GeoReference / ShadowInfo)."
+
+        if meta_info and meta_info.get("unit") and meta_info.get("unit") != "auto":
+            skp_unit = meta_info.get("unit")
+            skp_unit_scale = unit_factor_to_m(skp_unit)
+        else:
+            skp_unit = "auto"
+            skp_unit_scale = 1.0
+
         return {
             "format": "SKP",
+            "name": meta_info.get("name") if meta_info else None,
             "has_georef": has_georef,
             "method": skp_info.get("source"),
             "crs": skp_info.get("crs"),
             "longitude": round(skp_info["longitude"], 7) if has_georef else None,
             "latitude": round(skp_info["latitude"], 7) if has_georef else None,
             "rotate": round(skp_info.get("north_angle", 0.0), 2) if has_georef else 0.0,
-            "unit": "m",
-            "unit_scale": 1.0,
-            "message": (
-                f"Georeferensi terdeteksi dari metadata SketchUp ({skp_info.get('source')})."
-                if has_georef
-                else "Model SKP tidak memiliki metadata geolokasi (GeoReference / ShadowInfo)."
-            ),
+            "unit": skp_unit,
+            "unit_scale": skp_unit_scale,
+            "message": msg,
         }
     else:
         return {
@@ -722,6 +762,9 @@ def process_one(
     out_dir.mkdir(parents=True, exist_ok=True)
     fmt = detect_input_format(input_path)
 
+    meta_file = getattr(args, "metadata", None) or find_metadata_json(input_path)
+    meta_info = parse_metadata_json(meta_file) if meta_file else None
+
     if fmt == "SKP":
         _log(progress_cb, f"[0/5] Ingesting SketchUp (.skp): {input_path.name}", step=0)
         skp_georef = extract_skp_georeference(
@@ -730,6 +773,7 @@ def process_one(
             fallback_lat=args.anchor_lat,
             fallback_crs=args.crs,
             fallback_rotate=args.rotate,
+            metadata_info=meta_info,
         )
         _log(progress_cb, f"      SKP Georeference source: {skp_georef['source']}")
         _log(progress_cb, f"      CRS: {skp_georef['crs']}, Anchor: ({skp_georef['longitude']:.8f}, {skp_georef['latitude']:.8f})")
@@ -767,10 +811,12 @@ def process_one(
         lod13_simplify_m=args.lod13_simplify_m,
         lod13_min_component_area_m2=args.lod13_min_component_area_m2,
         crs=args.crs,
+        rotate=getattr(args, "rotate", 0.0),
         ignore_georef=args.ignore_georef,
         pure_geojson=args.pure_geojson,
         legacy_manifests=args.legacy_manifests,
         source_format=source_format,
+        metadata_info=meta_info,
         progress_cb=progress_cb,
     )
 
@@ -782,7 +828,8 @@ def process_one(
     resolved_lat = resolved_anchor.get("lat", -7.98098)
 
     item_id = dataset if batch or getattr(args, "item_id", None) is None else args.item_id
-    name = input_path.stem if batch or getattr(args, "name", None) is None else args.name
+    default_name = (meta_info.get("name") if meta_info else None) or input_path.stem
+    name = default_name if batch or getattr(args, "name", None) is None else args.name
     longitude = getattr(args, "longitude", None) if getattr(args, "longitude", None) is not None else resolved_lon
     latitude = getattr(args, "latitude", None) if getattr(args, "latitude", None) is not None else resolved_lat
 

@@ -208,6 +208,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             qs = parse_qs(parsed.query)
             dataset = qs.get("dataset", [""])[0]
             filename = qs.get("file", [""])[0]
+            custom_name = qs.get("name", [""])[0]
             if not dataset or not filename:
                 self.send_error(400, "Missing dataset or file parameter")
                 return
@@ -220,7 +221,35 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             if not target.exists():
                 self.send_error(404, f"File {filename} not found in dataset {dataset}")
                 return
-            self.send_file_response(target, download_name=safe_filename)
+
+            download_name = safe_filename
+            building_name = custom_name.strip()
+            dataset_dir = self.workspace / "outputs" / dataset
+            if not building_name:
+                meta_file = dataset_dir / "metadata.json"
+                if meta_file.exists():
+                    try:
+                        with open(meta_file, "r", encoding="utf-8") as mf:
+                            mdata = json.load(mf)
+                            building_name = str(mdata.get("name") or mdata.get("building_name") or "").strip()
+                    except Exception:
+                        pass
+            if not building_name:
+                manifest_file = dataset_dir / "manifest.json"
+                if manifest_file.exists():
+                    try:
+                        with open(manifest_file, "r", encoding="utf-8") as mf:
+                            mdata = json.load(mf)
+                            building_name = str(mdata.get("name") or "").strip()
+                    except Exception:
+                        pass
+
+            if building_name:
+                clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', building_name)
+                ext = Path(safe_filename).suffix
+                download_name = f"{clean_name}{ext}"
+
+            self.send_file_response(target, download_name=download_name)
             return
 
         if path.startswith("/api/jobs/") and path.endswith("/events"):
@@ -345,6 +374,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                         try:
                             with open(meta_file, "r", encoding="utf-8") as mf:
                                 meta = json.load(mf)
+                            item["name"] = meta.get("name") or meta.get("building_name") or d.name
                             item["source_format"] = meta.get("source_format", "BIM")
                             item["storeys"] = meta.get("plateau_count", 0)
                             summary = meta.get("summary", {})
@@ -352,6 +382,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                             item["footprint_m2"] = summary.get("footprint_area_m2", 0)
                         except Exception:
                             pass
+                    else:
+                        item["name"] = d.name
 
                     history.append(item)
 
@@ -463,8 +495,19 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             tmp.write(file_bytes)
             tmp_path = Path(tmp.name)
 
+        tmp_meta_path = None
+        if "metadata" in files:
+            uploaded_meta = files["metadata"]
+            meta_name = uploaded_meta["filename"]
+            meta_bytes = uploaded_meta["data"]
+            meta_ext = Path(meta_name).suffix.lower()
+            if meta_ext in {".json", ".geojson"}:
+                with tempfile.NamedTemporaryFile(suffix=meta_ext, delete=False) as tmp_m:
+                    tmp_m.write(meta_bytes)
+                    tmp_meta_path = Path(tmp_m.name)
+
         try:
-            res = engine.inspect_model_file(tmp_path)
+            res = engine.inspect_model_file(tmp_path, metadata_path=tmp_meta_path)
             res["filename"] = original_name
             self.send_json({"success": True, "data": res})
         except Exception as exc:
@@ -472,6 +515,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
         finally:
             if tmp_path.exists():
                 tmp_path.unlink()
+            if tmp_meta_path and tmp_meta_path.exists():
+                tmp_meta_path.unlink()
 
     def handle_convert(self):
         content_type = self.headers.get("Content-Type", "")
@@ -515,6 +560,17 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
         saved_input = uploads_dir / f"{dataset_id}_{int(time.time())}{ext}"
         saved_input.write_bytes(file_bytes)
 
+        saved_meta = None
+        if "metadata" in files:
+            uploaded_meta = files["metadata"]
+            meta_name = uploaded_meta["filename"]
+            meta_bytes = uploaded_meta["data"]
+            meta_ext = Path(meta_name).suffix.lower()
+            if meta_ext in {".json", ".geojson"}:
+                meta_slug = engine.safe_slug(Path(meta_name).stem)
+                saved_meta = uploads_dir / f"{meta_slug}_{int(time.time())}{meta_ext}"
+                saved_meta.write_bytes(meta_bytes)
+
         out_dir = self.workspace / "outputs" / dataset_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -555,6 +611,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             args_list.extend(["--anchor-lon", str(fallback_lon), "--anchor-lat", str(fallback_lat)])
         if crs:
             args_list.extend(["--crs", crs])
+        if saved_meta:
+            args_list.extend(["--metadata", str(saved_meta)])
 
         args = parser.parse_args(args_list)
 
@@ -617,18 +675,20 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 "elapsed_sec": elapsed_sec,
             }
 
+            b_name = metadata.get("name") or metadata.get("building_name") or upload_file.stem
+            clean_b_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', str(b_name).strip())
             files_info = {}
             if geojson_file.exists():
                 files_info["geojson"] = {
-                    "url": f"/api/download?dataset={dataset_id}&file=building.geojson",
+                    "url": f"/api/download?dataset={dataset_id}&file=building.geojson&name={clean_b_name}",
                     "size": geojson_file.stat().st_size,
-                    "name": "building.geojson",
+                    "name": f"{clean_b_name}.geojson",
                 }
             if glb_file.exists():
                 files_info["glb"] = {
-                    "url": f"/api/download?dataset={dataset_id}&file=model.glb",
+                    "url": f"/api/download?dataset={dataset_id}&file=model.glb&name={clean_b_name}",
                     "size": glb_file.stat().st_size,
-                    "name": "model.glb",
+                    "name": f"{clean_b_name}.glb",
                 }
 
             _job_emit(job, {

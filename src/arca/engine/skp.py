@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from .georef import degrees_to_compound_dms, latlon_to_utm_wgs84
+from .georef import degrees_to_compound_dms, find_metadata_json, latlon_to_utm_wgs84, parse_metadata_json
 from .step import split_top
 
 
@@ -111,6 +111,7 @@ def extract_skp_georeference(
     fallback_lat: Optional[float] = None,
     fallback_crs: Optional[str] = None,
     fallback_rotate: float = 0.0,
+    metadata_info: Optional[dict] = None,
 ) -> dict:
     """Extract georeference metadata from SketchUp model or companion metadata."""
     info = {
@@ -123,35 +124,24 @@ def extract_skp_georeference(
         "has_georef": False,
     }
 
-    # 1. Companion JSON (<name>.json or metadata.json)
-    for companion in [skp_path.with_suffix(".json"), skp_path.parent / "metadata.json"]:
-        if companion.is_file():
-            try:
-                data = json.loads(companion.read_text(encoding="utf-8"))
-                found = False
-                for k in ["latitude", "lat", "Latitude"]:
-                    if k in data:
-                        info["latitude"] = float(data[k])
-                        found = True
-                for k in ["longitude", "lon", "Longitude"]:
-                    if k in data:
-                        info["longitude"] = float(data[k])
-                        found = True
-                for k in ["north_angle", "northAngle", "rotate", "NorthAngle"]:
-                    if k in data:
-                        info["north_angle"] = float(data[k])
-                for k in ["crs", "CRS"]:
-                    if k in data:
-                        info["crs"] = str(data[k])
-                for k in ["elevation", "altitude", "z"]:
-                    if k in data:
-                        info["elevation"] = float(data[k])
-                if found:
-                    info["source"] = f"companion_json:{companion.name}"
-                    info["has_georef"] = True
-                    break
-            except Exception:
-                pass
+    # 1. Companion Metadata JSON (<name>.json, metadata.json, etc.)
+    if metadata_info is None:
+        meta_file = find_metadata_json(skp_path)
+        if meta_file:
+            metadata_info = parse_metadata_json(meta_file)
+
+    if metadata_info and metadata_info.get("has_georef"):
+        info["latitude"] = metadata_info["latitude"]
+        info["longitude"] = metadata_info["longitude"]
+        if metadata_info.get("elevation") is not None:
+            info["elevation"] = float(metadata_info["elevation"])
+        if metadata_info.get("rotate") is not None:
+            info["north_angle"] = float(metadata_info["rotate"])
+        if metadata_info.get("crs"):
+            info["crs"] = str(metadata_info["crs"])
+        fpath = metadata_info.get("file_path")
+        info["source"] = f"metadata_json:{Path(fpath).name}" if fpath else "metadata_json"
+        info["has_georef"] = True
 
     if not info["has_georef"] and HAS_OPENSKP:
         # 2. Legacy SKP attributes (openskp.legacy)

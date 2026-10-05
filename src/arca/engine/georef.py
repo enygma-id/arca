@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 from __future__ import annotations
 
+import json
 import math
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional, Tuple
 
 try:
@@ -320,29 +322,40 @@ class GeoreferenceContext:
         return self.unit_name
 
     def local_to_lonlat(self, x: float, y: float) -> Tuple[float, float]:
-        if self.method == "ifc_map_conversion":
-            A = self.x_axis_abscissa
-            B = self.x_axis_ordinate
-            S = self.scale
-            norm = math.hypot(A, B)
-            if norm > 1e-12:
-                uA, uB = A / norm, B / norm
-            else:
-                uA, uB = 1.0, 0.0
+        if self.method == "ifc_map_conversion" or self.method.startswith("metadata_json") or self.method == "cli_anchor_override":
+            if (self.transformer is not None or self.utm_zone is not None) and (self.eastings != 0.0 or self.northings != 0.0):
+                A = self.x_axis_abscissa
+                B = self.x_axis_ordinate
+                S = self.scale
+                norm = math.hypot(A, B)
+                if norm > 1e-12:
+                    uA, uB = A / norm, B / norm
+                else:
+                    uA, uB = 1.0, 0.0
 
-            E = self.eastings + S * (uA * x - uB * y)
-            N = self.northings + S * (uB * x + uA * y)
+                E = self.eastings + S * (uA * x - uB * y)
+                N = self.northings + S * (uB * x + uA * y)
 
-            if self.transformer is not None:
-                lon, lat = self.transformer.transform(E, N)
-                return float(lon), float(lat)
-            elif self.utm_zone is not None:
-                lon, lat = utm_to_latlon_wgs84(E, N, self.utm_zone, self.utm_south)
-                return float(lon), float(lat)
+                if self.transformer is not None:
+                    lon, lat = self.transformer.transform(E, N)
+                    return float(lon), float(lat)
+                elif self.utm_zone is not None:
+                    lon, lat = utm_to_latlon_wgs84(E, N, self.utm_zone, self.utm_south)
+                    return float(lon), float(lat)
 
-        lat = self.anchor_lat + (y / R_EARTH) * 180.0 / math.pi
+        A = self.x_axis_abscissa
+        B = self.x_axis_ordinate
+        norm = math.hypot(A, B)
+        if norm > 1e-12:
+            uA, uB = A / norm, B / norm
+            xr = uA * x - uB * y
+            yr = uB * x + uA * y
+        else:
+            xr, yr = x, y
+
+        lat = self.anchor_lat + (yr / R_EARTH) * 180.0 / math.pi
         lon = self.anchor_lon + (
-            x / (R_EARTH * math.cos(math.radians(self.anchor_lat)))
+            xr / (R_EARTH * math.cos(math.radians(self.anchor_lat)))
         ) * 180.0 / math.pi
         return float(lon), float(lat)
 
@@ -365,6 +378,200 @@ class GeoreferenceContext:
         }
 
 
+def find_metadata_json(model_path: str | Path) -> Optional[Path]:
+    """
+    Search for a companion metadata JSON or GeoJSON file corresponding to a model file.
+    Search order:
+    1. <model_stem>.json
+    2. <model_stem>.geojson
+    3. <model_name>.json
+    4. <model_name>.geojson
+    5. metadata.json
+    6. metadata.geojson
+    """
+    p = Path(model_path)
+    parent = p.parent
+    if not parent.exists():
+        return None
+    candidates = [
+        p.with_suffix(".json"),
+        p.with_suffix(".geojson"),
+        parent / f"{p.name}.json",
+        parent / f"{p.name}.geojson",
+        parent / "metadata.json",
+        parent / "metadata.geojson",
+    ]
+    for c in candidates:
+        if c.is_file() and c.resolve() != p.resolve():
+            return c
+    return None
+
+
+def parse_metadata_json(file_path: str | Path) -> Optional[dict]:
+    """
+    Parse a companion metadata JSON or GeoJSON file.
+    Extracts name, longitude, latitude, crs, rotate, and elevation.
+    """
+    p = Path(file_path)
+    if not p.is_file():
+        return None
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return None
+
+    if not isinstance(data, dict):
+        return None
+
+    out = {
+        "has_georef": False,
+        "name": data.get("name") or data.get("building_name") or data.get("title"),
+        "longitude": None,
+        "latitude": None,
+        "crs": None,
+        "rotate": 0.0,
+        "elevation": 0.0,
+        "unit": "auto",
+        "file_path": str(p.resolve()),
+    }
+
+    # 1. GeoJSON format
+    if data.get("type") in ("FeatureCollection", "Feature"):
+        props = {}
+        coords = None
+        if data.get("type") == "Feature":
+            props = data.get("properties") or {}
+            geom = data.get("geometry") or {}
+            coords = geom.get("coordinates")
+        elif data.get("type") == "FeatureCollection" and data.get("features"):
+            first_feat = data["features"][0]
+            props = first_feat.get("properties") or {}
+            geom = first_feat.get("geometry") or {}
+            coords = geom.get("coordinates")
+
+        if not out["name"]:
+            out["name"] = props.get("name") or props.get("building_name")
+
+        if coords:
+            c = coords
+            while isinstance(c, (list, tuple)) and len(c) > 0 and isinstance(c[0], (list, tuple)):
+                c = c[0]
+            if isinstance(c, (list, tuple)) and len(c) >= 2:
+                try:
+                    out["longitude"] = float(c[0])
+                    out["latitude"] = float(c[1])
+                    if len(c) >= 3:
+                        out["elevation"] = float(c[2])
+                    out["has_georef"] = True
+                except (ValueError, TypeError):
+                    pass
+
+        for lon_key in ("longitude", "lon", "anchor_lon", "lng"):
+            if lon_key in props and props[lon_key] is not None:
+                try:
+                    out["longitude"] = float(props[lon_key])
+                    out["has_georef"] = True
+                    break
+                except (ValueError, TypeError):
+                    pass
+        for lat_key in ("latitude", "lat", "anchor_lat"):
+            if lat_key in props and props[lat_key] is not None:
+                try:
+                    out["latitude"] = float(props[lat_key])
+                    out["has_georef"] = True
+                    break
+                except (ValueError, TypeError):
+                    pass
+        for crs_key in ("crs", "CRS", "target_crs", "crs_epsg"):
+            if crs_key in props and props[crs_key]:
+                out["crs"] = str(props[crs_key])
+                break
+        for rot_key in ("rotate", "rotation", "rotation_deg", "north_angle"):
+            if rot_key in props and props[rot_key] is not None:
+                try:
+                    out["rotate"] = float(props[rot_key])
+                    break
+                except (ValueError, TypeError):
+                    pass
+        for elev_key in ("elevation", "altitude", "base_z"):
+            if elev_key in props and props[elev_key] is not None:
+                try:
+                    out["elevation"] = float(props[elev_key])
+                    break
+                except (ValueError, TypeError):
+                    pass
+        for unit_key in ("unit", "length_unit", "source_unit"):
+            if unit_key in props and props[unit_key]:
+                out["unit"] = str(props[unit_key]).lower().strip()
+                break
+
+    # 2. Standard JSON format (supports flat fields and nested "anchor" / "georeference")
+    anchor = data.get("anchor") or {}
+    georef = data.get("georeference") or {}
+
+    for lon_key in ("longitude", "lon", "anchor_lon", "lng", "x"):
+        val = data.get(lon_key) if lon_key in data else anchor.get(lon_key)
+        if val is not None:
+            try:
+                out["longitude"] = float(val)
+                out["has_georef"] = True
+                break
+            except (ValueError, TypeError):
+                pass
+
+    for lat_key in ("latitude", "lat", "anchor_lat", "y"):
+        val = data.get(lat_key) if lat_key in data else anchor.get(lat_key)
+        if val is not None:
+            try:
+                out["latitude"] = float(val)
+                out["has_georef"] = True
+                break
+            except (ValueError, TypeError):
+                pass
+
+    for crs_key in ("crs", "CRS", "target_crs", "crs_epsg"):
+        val = data.get(crs_key) if crs_key in data else georef.get(crs_key)
+        if val:
+            val_str = str(val)
+            if val_str.isdigit():
+                val_str = f"EPSG:{val_str}"
+            out["crs"] = val_str
+            break
+
+    for rot_key in ("rotate", "rotation", "rotation_deg", "north_angle", "rotation_rad"):
+        val = data.get(rot_key) if rot_key in data else georef.get(rot_key)
+        if val is not None:
+            try:
+                r = float(val)
+                if rot_key == "rotation_rad":
+                    r = math.degrees(r)
+                out["rotate"] = r
+                break
+            except (ValueError, TypeError):
+                pass
+
+    for elev_key in ("elevation", "altitude", "origin_orthogonal_height", "base_z"):
+        val = data.get(elev_key) if elev_key in data else georef.get(elev_key)
+        if val is not None:
+            try:
+                out["elevation"] = float(val)
+                break
+            except (ValueError, TypeError):
+                pass
+
+    for unit_key in ("unit", "length_unit", "source_unit"):
+        val = data.get(unit_key) if unit_key in data else georef.get(unit_key)
+        if val:
+            out["unit"] = str(val).lower().strip()
+            break
+
+    if out["longitude"] is not None and out["latitude"] is not None:
+        out["has_georef"] = True
+
+    return out
+
+
 def resolve_georeferencing(
     ents: dict,
     fallback_lon: Optional[float] = None,
@@ -374,22 +581,110 @@ def resolve_georeferencing(
     cli_anchor_lon: Optional[float] = None,
     cli_anchor_lat: Optional[float] = None,
     cli_source_unit: Optional[str] = None,
+    cli_rotate: Optional[float] = None,
+    metadata_info: Optional[dict] = None,
 ) -> GeoreferenceContext:
     if cli_source_unit is not None:
         cli_unit = cli_source_unit
-    if cli_anchor_lon is not None and fallback_lon is None:
-        fallback_lon = cli_anchor_lon
-    if cli_anchor_lat is not None and fallback_lat is None:
-        fallback_lat = cli_anchor_lat
 
     detected_unit_name, detected_unit_factor = extract_length_unit(ents)
+    meta_unit = metadata_info.get("unit") if metadata_info else None
     if cli_unit != "auto":
         unit_name = cli_unit
         unit_scale_to_m = unit_factor_to_m(cli_unit)
+    elif meta_unit and meta_unit != "auto":
+        unit_name = meta_unit
+        unit_scale_to_m = unit_factor_to_m(meta_unit)
     else:
         unit_name = detected_unit_name
         unit_scale_to_m = detected_unit_factor
 
+    def _create_context(
+        method: str,
+        crs_name: str,
+        target_crs: Optional[str],
+        lon: float,
+        lat: float,
+        elev: float,
+        rot_deg: float,
+    ) -> GeoreferenceContext:
+        rad = math.radians(rot_deg)
+        x_abscissa = math.cos(rad)
+        x_ordinate = -math.sin(rad)
+        transformer = None
+        utm_zone = None
+        utm_south = False
+        eastings = 0.0
+        northings = 0.0
+
+        target_crs_code = cli_crs or target_crs
+        if target_crs_code:
+            m_utm = re.search(r"32([67])(\d{2})", target_crs_code)
+            if m_utm:
+                utm_south = m_utm.group(1) == "7"
+                utm_zone = int(m_utm.group(2))
+                _, _, eastings, northings = latlon_to_utm_wgs84(lat, lon, zone=utm_zone, is_south=utm_south)
+            elif HAS_PYPROJ:
+                try:
+                    fwd = pyproj.Transformer.from_crs("EPSG:4326", target_crs_code, always_xy=True)
+                    eastings, northings = fwd.transform(lon, lat)
+                    transformer = pyproj.Transformer.from_crs(target_crs_code, "EPSG:4326", always_xy=True)
+                except Exception:
+                    pass
+
+        return GeoreferenceContext(
+            method=method,
+            crs_name=crs_name,
+            target_crs=target_crs_code or "EPSG:4326",
+            eastings=eastings,
+            northings=northings,
+            orthogonal_height=elev,
+            x_axis_abscissa=x_abscissa,
+            x_axis_ordinate=x_ordinate,
+            scale=1.0,
+            anchor_lon=float(lon),
+            anchor_lat=float(lat),
+            anchor_elevation=elev,
+            unit_name=unit_name,
+            unit_scale_to_m=unit_scale_to_m,
+            transformer=transformer,
+            utm_zone=utm_zone,
+            utm_south=utm_south,
+        )
+
+    # Priority 1: Explicit CLI anchor override
+    if cli_anchor_lon is not None and cli_anchor_lat is not None:
+        rot = cli_rotate if cli_rotate is not None else 0.0
+        return _create_context(
+            method="cli_anchor_override",
+            crs_name=f"WGS 84 / {cli_crs}" if cli_crs else "WGS 84 (User CLI Anchor)",
+            target_crs=cli_crs or "EPSG:4326",
+            lon=cli_anchor_lon,
+            lat=cli_anchor_lat,
+            elev=0.0,
+            rot_deg=rot,
+        )
+
+    # Priority 2: Companion Metadata JSON
+    if metadata_info and metadata_info.get("has_georef"):
+        m_lon = metadata_info["longitude"]
+        m_lat = metadata_info["latitude"]
+        m_crs = cli_crs or metadata_info.get("crs")
+        m_rot = cli_rotate if cli_rotate is not None else metadata_info.get("rotate", 0.0)
+        m_elev = metadata_info.get("elevation", 0.0)
+        fpath = metadata_info.get("file_path")
+        m_method = f"metadata_json:{Path(fpath).name}" if fpath else "metadata_json"
+        return _create_context(
+            method=m_method,
+            crs_name=f"WGS 84 / {m_crs}" if m_crs else "WGS 84 (Metadata JSON)",
+            target_crs=m_crs or "EPSG:4326",
+            lon=m_lon,
+            lat=m_lat,
+            elev=m_elev,
+            rot_deg=m_rot,
+        )
+
+    # Priority 3: IFC internal georeferencing
     map_conv_eid = None
     projected_crs_eid = None
     site_eid = None
@@ -426,6 +721,11 @@ def resolve_georeferencing(
         x_axis_abscissa = float(mc_attrs[5]) if len(mc_attrs) > 5 and mc_attrs[5] is not None else 1.0
         x_axis_ordinate = float(mc_attrs[6]) if len(mc_attrs) > 6 and mc_attrs[6] is not None else 0.0
         scale = float(mc_attrs[7]) if len(mc_attrs) > 7 and mc_attrs[7] is not None else 1.0
+
+        if cli_rotate is not None and cli_rotate != 0.0:
+            rad = math.radians(cli_rotate)
+            x_axis_abscissa = math.cos(rad)
+            x_axis_ordinate = -math.sin(rad)
 
         crs_epsg = None
         crs_name = None

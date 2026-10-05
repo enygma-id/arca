@@ -48,12 +48,14 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--crs", default=None)
     r.add_argument("--rotate", type=float, default=0.0)
     r.add_argument("--source-unit", choices=("auto", "m", "mm", "cm"), default="auto")
+    r.add_argument("--metadata", type=Path, default=None, help="Path to companion metadata JSON / GeoJSON file")
     r.add_argument("--events", choices=("human", "jsonl"), default="human")
     r.add_argument("--cancel-file", type=Path)
     r.add_argument("--quiet", action="store_true")
 
     i = sub.add_parser("inspect", help="Inspect georeferencing metadata of IFC/SKP file")
     i.add_argument("file", type=Path, help="IFC or SKP model file")
+    i.add_argument("--metadata", type=Path, default=None, help="Path to companion metadata JSON / GeoJSON file")
 
     return p
 
@@ -87,6 +89,8 @@ def _run(args: argparse.Namespace) -> int:
         cli_args.extend(["--anchor-lon", str(args.anchor_lon), "--anchor-lat", str(args.anchor_lat)])
     if args.crs:
         cli_args.extend(["--crs", args.crs])
+    if getattr(args, "metadata", None):
+        cli_args.extend(["--metadata", str(args.metadata)])
 
     parsed_cli = sub_parser.parse_args(cli_args)
     if cancel_flag and cancel_flag():
@@ -118,7 +122,7 @@ def _serve(args: argparse.Namespace) -> int:
 
 def _inspect(args: argparse.Namespace) -> int:
     from . import engine
-    info = engine.inspect_model_file(args.file)
+    info = engine.inspect_model_file(args.file, metadata_path=getattr(args, "metadata", None))
     print(json.dumps(info, indent=2))
     return 0
 

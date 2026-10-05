@@ -686,6 +686,13 @@ function hasGlbAssets() {
 }
 
 function updateRepresentationControls() {
+  const isMapLibre = state.engine === 'maplibre';
+  if (isMapLibre) {
+    glbButton.style.display = 'none';
+  } else {
+    glbButton.style.display = '';
+  }
+
   const labels = representationLabels();
   representationBadge.textContent = labels[state.representation] || state.representation;
 
@@ -700,7 +707,9 @@ function updateRepresentationControls() {
   if (state.representation === 'glb') {
     representationHint.textContent = `GLB renders every configured model (${detailAssets().length} available).`;
   } else {
-    representationHint.textContent = 'LOD 1.3 loads every valid GIS building. Switch to GLB to render all configured models.';
+    representationHint.textContent = isMapLibre
+      ? 'LOD 1.3 loads every valid GIS building.'
+      : 'LOD 1.3 loads every valid GIS building. Switch to GLB to render all configured models.';
   }
 }
 
@@ -967,28 +976,31 @@ function showAssetCard(asset) {
     ['Rotate', `${asset.item.rotate ?? 0}°`]
   ].filter(([,v]) => v !== null && v !== undefined && v !== '');
 
+  const isMapLibre = state.engine === 'maplibre';
   const isGlb = state.representation === 'glb';
   const sourceText = isGlb ? 'GLB 3D' : representationLabel(asset.sourceKey || state.gisRepresentation);
   const displayBytes = isGlb ? (asset.glbBytes || asset.item?.detail?.bytes || null) : asset.bytes;
 
   let repSwitchHtml = '';
-  if (isGlb) {
-    repSwitchHtml = `
-      <div class="asset-key">LOD 1.3</div>
-      <div class="asset-value">
-        <button id="btnSwitchToLod" type="button" class="btn-rep-toggle">Switch to LOD 1.3 (${formatBytes(asset.bytes)})</button>
-      </div>`;
-  } else if (asset.item.detail?.glb) {
-    const glbKnownBytes = asset.glbBytes || asset.item.detail?.bytes;
-    repSwitchHtml = `
-      <div class="asset-key">GLB</div>
-      <div class="asset-value">
-        <button id="btnSwitchToGlb" type="button" class="btn-rep-toggle">Show GLB ${glbKnownBytes ? `(${formatBytes(glbKnownBytes)})` : ''}</button>
-      </div>`;
-  } else {
-    repSwitchHtml = `
-      <div class="asset-key">GLB</div>
-      <div class="asset-value">Not configured</div>`;
+  if (!isMapLibre) {
+    if (isGlb) {
+      repSwitchHtml = `
+        <div class="asset-key">LOD 1.3</div>
+        <div class="asset-value">
+          <button id="btnSwitchToLod" type="button" class="btn-rep-toggle">Switch to LOD 1.3 (${formatBytes(asset.bytes)})</button>
+        </div>`;
+    } else if (asset.item.detail?.glb) {
+      const glbKnownBytes = asset.glbBytes || asset.item.detail?.bytes;
+      repSwitchHtml = `
+        <div class="asset-key">GLB</div>
+        <div class="asset-value">
+          <button id="btnSwitchToGlb" type="button" class="btn-rep-toggle">Show GLB ${glbKnownBytes ? `(${formatBytes(glbKnownBytes)})` : ''}</button>
+        </div>`;
+    } else {
+      repSwitchHtml = `
+        <div class="asset-key">GLB</div>
+        <div class="asset-value">Not configured</div>`;
+    }
   }
 
   assetCard.innerHTML = `
@@ -1983,6 +1995,11 @@ const engineNames={maplibre:'MapLibre GL JS',deck:'Deck.gl',cesium:'CesiumJS'};
 async function switchEngine(engine){
   if(state.renderer){state.renderer.destroy();state.renderer=null;}
   state.engine=engine;
+  if(engine==='maplibre' && state.representation==='glb'){
+    state.representation=state.gisRepresentation||'enhanced_lod1_3';
+  }
+  updateRepresentationControls();
+  if(state.selected) showAssetCard(state.selected);
   viewerNode.replaceChildren();
   engineLabel.textContent=engineNames[engine];
   document.querySelectorAll('.engine-btn').forEach(btn=>{

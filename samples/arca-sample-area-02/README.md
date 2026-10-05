@@ -24,6 +24,29 @@ No proprietary client CAD/BIM data was used. The model represents a realistic mu
 | Site centroid (WGS 84) | 119.4151° E, -5.1493° S |
 | Georeference mechanism | Companion JSON metadata (`data/arca_synthetic_mall_10f.json`) |
 
+### Metadata JSON specification & template
+
+`data/arca_synthetic_mall_10f.json` serves as the reference template for georeferencing BIM/3D models:
+
+```json
+{
+  "name": "ARCA Synthetic Mall 10F",
+  "crs": "EPSG:32750",
+  "longitude": 119.4151,
+  "latitude": -5.1492599,
+  "elevation": 0.0,
+  "rotate": 0.0,
+  "unit": "auto"
+}
+```
+
+- `name`: Building / dataset identifier.
+- `crs`: Target projected coordinate reference system (e.g. `EPSG:32750`).
+- `longitude` / `latitude`: Geographic coordinates (WGS 84 / EPSG:4326) of the model origin.
+- `elevation`: Base ground elevation in meters (optional, default: `0.0`).
+- `rotate`: Rotation clockwise from North in degrees (alias: `north_angle`, default: `0.0`).
+- `unit`: Source length unit (`auto`, `m`, `mm`, `cm`, `in`, `ft`). Defaults to `auto` if omitted.
+
 ## ARCA workflow
 
 ```text

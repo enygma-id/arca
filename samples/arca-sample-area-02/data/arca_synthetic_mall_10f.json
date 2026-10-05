@@ -1,7 +1,9 @@
 {
+  "name": "ARCA Synthetic Mall 10F",
   "crs": "EPSG:32750",
   "longitude": 119.4151,
   "latitude": -5.1492599,
   "elevation": 0.0,
-  "north_angle": 0.0
+  "rotate": 0.0,
+  "unit": "auto"
 }

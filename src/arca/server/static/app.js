@@ -71,6 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputRotate = document.getElementById('rotate');
   const inputSourceUnit = document.getElementById('sourceUnit');
 
+  // Metadata JSON Elements
+  const enableMetadata = document.getElementById('enableMetadata');
+  const metadataUploadArea = document.getElementById('metadataUploadArea');
+  const metadataFileInput = document.getElementById('metadataFileInput');
+  const btnRemoveMetadata = document.getElementById('btnRemoveMetadata');
+  const metadataParsedStatus = document.getElementById('metadataParsedStatus');
+  let selectedMetadataFile = null;
+
   // Results & Metrics Elements
   const emptyState = document.getElementById('emptyState');
   const statusBanner = document.getElementById('statusBanner');
@@ -121,6 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formData = new FormData();
     formData.append('file', file);
+    if (enableMetadata && enableMetadata.checked && selectedMetadataFile) {
+      formData.append('metadata', selectedMetadataFile);
+    }
 
     try {
       const resp = await fetch('/api/inspect', {
@@ -139,7 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (info.has_georef) {
         inspectBanner.className = 'inspect-banner success';
-        inspectBadge.textContent = '✓ Automatic Georeferencing Detected';
+        if (info.method && info.method.startsWith('metadata_json')) {
+          inspectBadge.textContent = '✓ Metadata JSON Georeference Detected';
+        } else {
+          inspectBadge.textContent = '✓ Automatic Georeferencing Detected';
+        }
         inspectCRS.textContent = info.crs || 'CRS';
         
         let originText = '-';
@@ -153,6 +168,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (info.crs) {
           inputCRS.value = info.crs;
         }
+        if (info.name && !inputDatasetName.value.trim()) {
+          inputDatasetName.value = info.name;
+        }
         const rot = info.rotate !== undefined ? info.rotate : info.rotation_deg;
         if (rot !== undefined && rot !== null) {
           inputRotate.value = rot;
@@ -160,9 +178,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const unit = info.unit || info.length_unit;
         if (unit) {
           const unitLower = unit.toLowerCase();
-          if (unitLower.includes('milli') || unitLower === 'mm') inputSourceUnit.value = 'mm';
+          if (unitLower === 'auto') inputSourceUnit.value = 'auto';
+          else if (unitLower.includes('milli') || unitLower === 'mm') inputSourceUnit.value = 'mm';
           else if (unitLower.includes('centi') || unitLower === 'cm') inputSourceUnit.value = 'cm';
           else if (unitLower.includes('metre') || unitLower === 'meter' || unitLower === 'm') inputSourceUnit.value = 'm';
+          else inputSourceUnit.value = 'auto';
+        } else {
+          inputSourceUnit.value = 'auto';
         }
 
         inspectBody.innerHTML = `
@@ -308,6 +330,117 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnRemoveFile.addEventListener('click', clearSelectedFile);
 
+  // Metadata JSON Controls
+  if (enableMetadata) {
+    enableMetadata.addEventListener('change', () => {
+      if (enableMetadata.checked) {
+        metadataUploadArea.style.display = 'block';
+      } else {
+        metadataUploadArea.style.display = 'none';
+        selectedMetadataFile = null;
+        if (metadataFileInput) metadataFileInput.value = '';
+        if (btnRemoveMetadata) btnRemoveMetadata.style.display = 'none';
+        if (metadataParsedStatus) {
+          metadataParsedStatus.style.display = 'none';
+          metadataParsedStatus.textContent = '';
+        }
+        if (selectedFile) {
+          inspectFileMetadata(selectedFile, ++currentInspectId);
+        }
+      }
+    });
+  }
+
+  if (metadataFileInput) {
+    metadataFileInput.addEventListener('change', (e) => {
+      if (!e.target.files || e.target.files.length === 0) return;
+      const metaFile = e.target.files[0];
+      selectedMetadataFile = metaFile;
+      if (btnRemoveMetadata) btnRemoveMetadata.style.display = 'block';
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          let name = parsed.name || parsed.building_name || '';
+          let lon = parsed.longitude !== undefined ? parsed.longitude : (parsed.lon !== undefined ? parsed.lon : (parsed.anchor && parsed.anchor.lon));
+          let lat = parsed.latitude !== undefined ? parsed.latitude : (parsed.lat !== undefined ? parsed.lat : (parsed.anchor && parsed.anchor.lat));
+          let crs = parsed.crs || parsed.CRS || (parsed.georeference && parsed.georeference.crs_epsg ? `EPSG:${parsed.georeference.crs_epsg}` : '');
+          let rot = parsed.rotate !== undefined ? parsed.rotate : (parsed.north_angle !== undefined ? parsed.north_angle : (parsed.rotation_deg !== undefined ? parsed.rotation_deg : (parsed.georeference && parsed.georeference.rotation_deg)));
+          let unit = parsed.unit || parsed.length_unit || parsed.source_unit || '';
+
+          if (parsed.type === 'FeatureCollection' && parsed.features && parsed.features.length > 0) {
+            const feat = parsed.features[0];
+            const props = feat.properties || {};
+            name = name || props.name || props.building_name;
+            crs = crs || props.crs || props.CRS;
+            unit = unit || props.unit || props.length_unit || props.source_unit || '';
+            if (feat.geometry && feat.geometry.type === 'Point' && Array.isArray(feat.geometry.coordinates)) {
+              lon = feat.geometry.coordinates[0];
+              lat = feat.geometry.coordinates[1];
+            }
+          } else if (parsed.type === 'Feature') {
+            const props = parsed.properties || {};
+            name = name || props.name || props.building_name;
+            crs = crs || props.crs || props.CRS;
+            unit = unit || props.unit || props.length_unit || props.source_unit || '';
+            if (parsed.geometry && parsed.geometry.type === 'Point' && Array.isArray(parsed.geometry.coordinates)) {
+              lon = parsed.geometry.coordinates[0];
+              lat = parsed.geometry.coordinates[1];
+            }
+          }
+
+          if (name && !inputDatasetName.value.trim()) inputDatasetName.value = name;
+          if (lon !== undefined && lon !== null) inputAnchorLon.value = lon;
+          if (lat !== undefined && lat !== null) inputAnchorLat.value = lat;
+          if (crs) inputCRS.value = crs;
+          if (rot !== undefined && rot !== null) inputRotate.value = rot;
+
+          if (unit) {
+            const unitLower = unit.toLowerCase();
+            if (unitLower === 'auto') inputSourceUnit.value = 'auto';
+            else if (unitLower.includes('milli') || unitLower === 'mm') inputSourceUnit.value = 'mm';
+            else if (unitLower.includes('centi') || unitLower === 'cm') inputSourceUnit.value = 'cm';
+            else if (unitLower.includes('metre') || unitLower === 'meter' || unitLower === 'm') inputSourceUnit.value = 'm';
+            else inputSourceUnit.value = 'auto';
+          } else {
+            inputSourceUnit.value = 'auto';
+          }
+
+          if (metadataParsedStatus) {
+            const dispLon = lon !== undefined && lon !== null ? Number(lon).toFixed(6) : '-';
+            const dispLat = lat !== undefined && lat !== null ? Number(lat).toFixed(6) : '-';
+            metadataParsedStatus.textContent = `✓ Loaded: ${metaFile.name} (Lon: ${dispLon}, Lat: ${dispLat}, CRS: ${crs || '-'}, Unit: ${inputSourceUnit.value})`;
+            metadataParsedStatus.style.display = 'block';
+          }
+          if (georefAccordion) georefAccordion.open = true;
+        } catch (err) {
+          console.warn('Failed to parse metadata file locally', err);
+        }
+
+        if (selectedFile) {
+          inspectFileMetadata(selectedFile, ++currentInspectId);
+        }
+      };
+      reader.readAsText(metaFile);
+    });
+  }
+
+  if (btnRemoveMetadata) {
+    btnRemoveMetadata.addEventListener('click', () => {
+      selectedMetadataFile = null;
+      if (metadataFileInput) metadataFileInput.value = '';
+      btnRemoveMetadata.style.display = 'none';
+      if (metadataParsedStatus) {
+        metadataParsedStatus.style.display = 'none';
+        metadataParsedStatus.textContent = '';
+      }
+      if (selectedFile) {
+        inspectFileMetadata(selectedFile, ++currentInspectId);
+      }
+    });
+  }
+
   // Form submit
   convertForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -327,6 +460,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formData = new FormData();
     formData.append('file', selectedFile);
+    if (enableMetadata && enableMetadata.checked && selectedMetadataFile) {
+      formData.append('metadata', selectedMetadataFile);
+    }
     formData.append('dataset_name', inputDatasetName.value.trim());
     formData.append('generate', document.getElementById('generateMode').value);
     formData.append('anchor_lon', inputAnchorLon.value.trim());
@@ -407,6 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.files && data.files.geojson) {
               btnDownloadGeoJSON.href = data.files.geojson.url;
+              btnDownloadGeoJSON.download = data.files.geojson.name || 'building.geojson';
               btnDownloadGeoJSON.style.display = 'inline-flex';
             } else {
               btnDownloadGeoJSON.style.display = 'none';
@@ -414,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.files && data.files.glb) {
               btnDownloadGLB.href = data.files.glb.url;
+              btnDownloadGLB.download = data.files.glb.name || 'model.glb';
               btnDownloadGLB.style.display = 'inline-flex';
             } else {
               btnDownloadGLB.style.display = 'none';
@@ -519,11 +657,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      historyBody.innerHTML = list.map(item => `
+      historyBody.innerHTML = list.map(item => {
+        const bName = item.name || item.dataset;
+        const safeName = encodeURIComponent(bName);
+        return `
         <tr>
           <td>
             <a href="javascript:void(0)" class="history-item-link" data-dataset="${item.dataset}" style="font-weight:600; color:var(--text-primary); text-decoration:none;">
-              ${item.dataset}
+              ${item.name ? `${item.name} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(${item.dataset})</span>` : item.dataset}
             </a>
             ${item.height_m ? `<div style="font-size:11px; color:var(--text-muted);">${item.height_m.toFixed(1)}m | ${item.footprint_m2 ? item.footprint_m2.toFixed(0)+'m²' : ''}</div>` : ''}
           </td>
@@ -531,13 +672,13 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${item.storeys || '-'}</td>
           <td style="font-size: 11px; color: var(--text-muted);">${item.timestamp || '-'}</td>
           <td style="text-align: right; white-space: nowrap;">
-            ${item.has_geojson ? `<a href="/api/download?dataset=${item.dataset}&file=building.geojson" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GeoJSON">GeoJSON</a>` : ''}
-            ${item.has_glb ? `<a href="/api/download?dataset=${item.dataset}&file=model.glb" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GLB">GLB</a>` : ''}
+            ${item.has_geojson ? `<a href="/api/download?dataset=${item.dataset}&file=building.geojson&name=${safeName}" download="${bName}.geojson" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GeoJSON">GeoJSON</a>` : ''}
+            ${item.has_glb ? `<a href="/api/download?dataset=${item.dataset}&file=model.glb&name=${safeName}" download="${bName}.glb" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GLB">GLB</a>` : ''}
             <button type="button" class="btn-link btn-view-model" data-dataset="${item.dataset}" style="padding:2px 6px; font-size:11px; color:var(--accent-blue);" title="View in 3D Viewer">View</button>
             <button type="button" class="btn-link btn-delete-model" data-dataset="${item.dataset}" style="padding:2px 6px; font-size:11px; color:#dc2626;" title="Delete model">Delete</button>
           </td>
         </tr>
-      `).join('');
+      `;}).join('');
 
       // Attach click events for items
       document.querySelectorAll('.btn-view-model, .history-item-link').forEach(btn => {

@@ -47,3 +47,17 @@ def test_api_download_and_history_for_glb(tmp_path):
     assert len(served_files) == 1
     assert served_files[0][0] == glb_file
     assert served_files[0][1] == "model.glb"
+
+    # Test /api/download with explicit building name
+    served_files.clear()
+    handler.path = "/api/download?dataset=sample_dataset&file=model.glb&name=Mall%20Mega"
+    handler.do_GET()
+    assert len(served_files) == 1
+    assert served_files[0][1] == "Mall_Mega.glb"
+
+    served_files.clear()
+    handler.path = "/api/download?dataset=sample_dataset&file=building.geojson&name=Mall%20Mega"
+    handler.do_GET()
+    assert len(served_files) == 1
+    assert served_files[0][1] == "Mall_Mega.geojson"
+
