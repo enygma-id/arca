@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedMetadataFile = null;
 
   // Results & Metrics Elements
+  const resultCard = document.getElementById('resultCard');
   const emptyState = document.getElementById('emptyState');
   const statusBanner = document.getElementById('statusBanner');
   const metricsContainer = document.getElementById('metricsContainer');
@@ -96,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnDownloadGeoJSON = document.getElementById('btnDownloadGeoJSON');
   const btnDownloadGLB = document.getElementById('btnDownloadGLB');
   const btnOpenViewer = document.getElementById('btnOpenViewer');
+  const btnDeleteResult = document.getElementById('btnDeleteResult');
   const logBox = document.getElementById('logBox');
 
   const progressContainer = document.getElementById('progressContainer');
@@ -110,6 +112,21 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedFile = null;
   let lastConvertedDataset = null;
   let currentInspectId = 0;
+
+  function resetResultCard() {
+    lastConvertedDataset = null;
+    if (resultCard) resultCard.style.display = '';
+    if (emptyState) emptyState.style.display = 'block';
+    if (metricsContainer) metricsContainer.style.display = 'none';
+    if (statusBanner) statusBanner.style.display = 'none';
+    if (statusTag) statusTag.style.display = 'none';
+    if (progressContainer) progressContainer.style.display = 'none';
+    if (btnDeleteResult) btnDeleteResult.style.display = 'none';
+    if (btnDownloadGeoJSON) btnDownloadGeoJSON.style.display = 'none';
+    if (btnDownloadGLB) btnDownloadGLB.style.display = 'none';
+    if (logBox) logBox.textContent = '-';
+    if (liveLogBox) liveLogBox.textContent = '';
+  }
 
   function formatBytes(bytes, decimals = 2) {
     if (!+bytes) return '0 B';
@@ -446,6 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     if (!selectedFile) return;
 
+    if (resultCard) resultCard.style.display = '';
+    if (emptyState) emptyState.style.display = 'none';
+    if (metricsContainer) metricsContainer.style.display = 'none';
+    if (statusTag) statusTag.style.display = 'none';
+
     btnSubmit.disabled = true;
     btnSubmit.classList.add('loading');
     btnText.textContent = 'Processing Model...';
@@ -520,9 +542,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (progressStepTitle) progressStepTitle.textContent = 'Conversion complete!';
             setTimeout(() => { if (progressContainer) progressContainer.style.display = 'none'; }, 1200);
 
+            if (resultCard) resultCard.style.display = '';
             emptyState.style.display = 'none';
             metricsContainer.style.display = 'block';
             statusTag.style.display = 'inline-block';
+            if (btnDeleteResult) btnDeleteResult.style.display = 'inline-flex';
 
             statusBanner.className = 'status-banner success';
             statusBanner.textContent = `Model ${data.dataset} successfully converted in ${data.summary.elapsed_sec}s.`;
@@ -583,6 +607,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
     } catch (err) {
+      if (resultCard) resultCard.style.display = '';
+      if (!lastConvertedDataset && emptyState) {
+        emptyState.style.display = 'block';
+      }
       statusBanner.className = 'status-banner error';
       statusBanner.textContent = 'Processing failed: ' + err.message;
       statusBanner.style.display = 'block';
@@ -598,8 +626,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  const btnDeleteResult = document.getElementById('btnDeleteResult');
-
   // Delete dataset handler
   async function deleteDataset(datasetId) {
     if (!datasetId) return;
@@ -613,8 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await resp.json();
       if (res.success) {
         if (lastConvertedDataset === datasetId) {
-          resultCard.style.display = 'none';
-          lastConvertedDataset = null;
+          resetResultCard();
         }
         await loadHistory();
         if (window.ARCA_VIEWER?.reloadDataset) {
