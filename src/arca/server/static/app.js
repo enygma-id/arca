@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
       viewConverter.classList.add('active');
       viewViewer.classList.add('hidden');
       viewViewer.classList.remove('active');
+      document.getElementById('vguide').style.display = "none";
     } else {
       tabBtnViewer.classList.add('active');
       tabBtnConverter.classList.remove('active');
@@ -22,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
       viewViewer.classList.add('active');
       viewConverter.classList.add('hidden');
       viewConverter.classList.remove('active');
-
+      document.getElementById('vguide').style.display = "inline-flex";
       // Trigger map init / resize so viewport renders correctly
       setTimeout(() => {
         if (window.ARCA_VIEWER?.notifyVisible) {
