@@ -149,6 +149,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", mime_type)
         self.send_header("Content-Length", str(file_size))
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Access-Control-Allow-Origin", "*")
         if download_name:
             self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
@@ -176,7 +177,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 "default_basemap": "big",
                 "display_lod": "LOD 1.3",
                 "enabled_representations": ["lod1_3", "glb"],
-                "big_osm_gap_fill": True,
+                "big_osm_gap_fill": False,
             }
         })
         self.send_response(200)

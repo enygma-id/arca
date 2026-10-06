@@ -46,7 +46,7 @@ const state = {
       default_engine: "maplibre",
       default_basemap: "big",
       enabled_representations: ["lod1_3", "glb"],
-      big_osm_gap_fill: true
+      big_osm_gap_fill: false
     }
   },
   items: [],
@@ -1077,10 +1077,8 @@ function getOsmBasemapConfig() {
   };
 }
 
-function getBasemapConfig() {
+function getBigBasemapConfig() {
   const s = state.config?.settings || {};
-  if (state.basemap === 'osm') return getOsmBasemapConfig();
-
   return {
     id:'big',
     label:'BIG Rupabumi Indonesia',
@@ -1089,9 +1087,14 @@ function getBasemapConfig() {
       'https://geoservices.big.go.id/rbi/rest/services/BASEMAP/' +
       'Rupabumi_Indonesia/MapServer/tile/{z}/{y}/{x}',
     minZoom:Number(s.big_min_zoom ?? 5),
-    maxZoom:Number(s.big_max_zoom ?? 16),
+    maxZoom:Number(s.big_max_zoom ?? 15),
     attribution:'Badan Informasi Geospasial'
   };
+}
+
+function getBasemapConfig() {
+  if (state.basemap === 'osm') return getOsmBasemapConfig();
+  return getBigBasemapConfig();
 }
 
 async function loadRasterTile({url,signal}) {
@@ -1253,14 +1256,13 @@ class DeckRenderer {
   }
 
   layers() {
-    const base=getBasemapConfig();
-    const osm=getOsmBasemapConfig();
-    const layers=[];
-    if(base.id==='big' && state.config?.settings?.big_osm_gap_fill !== false){
-      layers.push(this.rasterLayer(osm,'basemap-osm-safety',1));
-      layers.push(this.rasterLayer(base,'basemap-big',.98));
-    }else{
-      layers.push(this.rasterLayer(base,`basemap-${base.id}`,1));
+    const osm = getOsmBasemapConfig();
+    const big = getBigBasemapConfig();
+    const layers = [];
+    if (state.basemap === 'big') {
+      layers.push(this.rasterLayer(big, 'basemap-big', 1));
+    } else {
+      layers.push(this.rasterLayer(osm, 'basemap-osm', 1));
     }
     layers.push(this.overviewLayer());
 
@@ -1411,25 +1413,30 @@ class MapLibreRenderer {
   }
 
   style(){
-    const base=getBasemapConfig();
-    const osm=getOsmBasemapConfig();
-    if(base.id==='big' && state.config?.settings?.big_osm_gap_fill !== false){
-      return {
-        version:8,
-        sources:{
-          osmSafety:{type:'raster',tiles:[osm.tile],tileSize:256,minzoom:0,maxzoom:osm.maxZoom,scheme:'xyz',attribution:osm.attribution},
-          big:{type:'raster',tiles:[base.tile],tileSize:256,minzoom:0,maxzoom:base.maxZoom,scheme:'xyz',attribution:base.attribution}
-        },
-        layers:[
-          {id:'basemap-osm-safety',type:'raster',source:'osmSafety',paint:{'raster-fade-duration':0}},
-          {id:'basemap-big',type:'raster',source:'big',paint:{'raster-opacity':1,'raster-fade-duration':0}}
-        ]
-      };
-    }
+    const osm = getOsmBasemapConfig();
+    const big = getBigBasemapConfig();
     return {
-      version:8,
-      sources:{base:{type:'raster',tiles:[base.tile],tileSize:256,minzoom:0,maxzoom:base.maxZoom,scheme:'xyz',attribution:base.attribution}},
-      layers:[{id:'basemap',type:'raster',source:'base',paint:{'raster-opacity':1,'raster-fade-duration':0}}]
+      version: 8,
+      sources: {
+        osm: { type: 'raster', tiles: [osm.tile], tileSize: 256, minzoom: 0, maxzoom: osm.maxZoom, attribution: osm.attribution },
+        big: { type: 'raster', tiles: [big.tile], tileSize: 256, minzoom: big.minZoom, maxzoom: big.maxZoom, attribution: big.attribution }
+      },
+      layers: [
+        { 
+          id: 'basemap-osm', 
+          type: 'raster', 
+          source: 'osm', 
+          layout: { visibility: state.basemap === 'osm' ? 'visible' : 'none' },
+          paint: { 'raster-fade-duration': 0 } 
+        },
+        { 
+          id: 'basemap-big', 
+          type: 'raster', 
+          source: 'big', 
+          layout: { visibility: state.basemap === 'big' ? 'visible' : 'none' },
+          paint: { 'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } 
+        }
+      ]
     };
   }
 
@@ -1751,12 +1758,15 @@ class MapLibreRenderer {
   }
 
   async rebuild(){
-    this.clearDetail();
-    const styleReady=waitForMapEvent(this.map,'style.load');
-    this.map.setStyle(this.style());
-    await styleReady;
-    this.addRepresentation();
-    if(state.representation==='glb')await this.enterGlb();
+    if (!this.map) return;
+    const isBig = state.basemap === 'big';
+    if (this.map.getLayer('basemap-big')) {
+      this.map.setLayoutProperty('basemap-big', 'visibility', isBig ? 'visible' : 'none');
+    }
+    if (this.map.getLayer('basemap-osm')) {
+      this.map.setLayoutProperty('basemap-osm', 'visibility', isBig ? 'none' : 'visible');
+    }
+    this.map.triggerRepaint();
   }
 
   async rebuildRepresentation(){
@@ -1882,20 +1892,12 @@ class CesiumRenderer {
     if(this.imagery){this.viewer.imageryLayers.remove(this.imagery,true);this.imagery=null;}
     if(this.imagerySafety){this.viewer.imageryLayers.remove(this.imagerySafety,true);this.imagerySafety=null;}
     const b=getBasemapConfig();
-    const osm=getOsmBasemapConfig();
-    if(b.id==='big' && state.config?.settings?.big_osm_gap_fill !== false){
-      this.imagerySafety=this.viewer.imageryLayers.addImageryProvider(
-        new Cesium.UrlTemplateImageryProvider({
-          url:osm.tile,minimumLevel:0,maximumLevel:osm.maxZoom,credit:new Cesium.Credit(osm.attribution)
-        })
-      );
-    }
     this.imagery=this.viewer.imageryLayers.addImageryProvider(
       new Cesium.UrlTemplateImageryProvider({
         url:b.tile,minimumLevel:b.minZoom??5,maximumLevel:b.maxZoom,credit:new Cesium.Credit(b.attribution)
       })
     );
-    if(b.id==='big')this.imagery.alpha=.98;
+    if(b.id==='big')this.imagery.alpha=1.0;
   }
 
   bindPicking(){

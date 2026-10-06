@@ -103,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressContainer = document.getElementById('progressContainer');
   const progressStepTitle = document.getElementById('progressStepTitle');
   const progressPercent = document.getElementById('progressPercent');
+  const progressTimer = document.getElementById('progressTimer');
   const progressBarFill = document.getElementById('progressBarFill');
   const liveLogBox = document.getElementById('liveLogBox');
 
@@ -112,15 +113,42 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedFile = null;
   let lastConvertedDataset = null;
   let currentInspectId = 0;
+  let timerInterval = null;
+  let timerStart = null;
+
+  function startProgressTimer() {
+    stopProgressTimer();
+    timerStart = Date.now();
+    if (progressTimer) {
+      progressTimer.textContent = '00:00';
+      progressTimer.style.display = 'inline';
+    }
+    timerInterval = setInterval(() => {
+      if (!timerStart || !progressTimer) return;
+      const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+      const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const ss = String(elapsed % 60).padStart(2, '0');
+      progressTimer.textContent = `${mm}:${ss}`;
+    }, 1000);
+  }
+
+  function stopProgressTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
 
   function resetResultCard() {
     lastConvertedDataset = null;
+    stopProgressTimer();
     if (resultCard) resultCard.style.display = '';
     if (emptyState) emptyState.style.display = 'block';
     if (metricsContainer) metricsContainer.style.display = 'none';
     if (statusBanner) statusBanner.style.display = 'none';
     if (statusTag) statusTag.style.display = 'none';
     if (progressContainer) progressContainer.style.display = 'none';
+    if (progressTimer) progressTimer.style.display = 'none';
     if (btnDeleteResult) btnDeleteResult.style.display = 'none';
     if (btnDownloadGeoJSON) btnDownloadGeoJSON.style.display = 'none';
     if (btnDownloadGLB) btnDownloadGLB.style.display = 'none';
@@ -479,6 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (progressBarFill) progressBarFill.style.width = '0%';
     if (progressPercent) progressPercent.textContent = '0%';
     if (progressStepTitle) progressStepTitle.textContent = 'Starting conversion...';
+    startProgressTimer();
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -524,17 +553,27 @@ document.addEventListener('DOMContentLoaded', () => {
               liveLogBox.textContent += prefix + event.message + '\n';
               liveLogBox.scrollTop = liveLogBox.scrollHeight;
             }
-            if (step != null && progressBarFill) {
-              const pct = Math.round((step / total) * 100);
+
+            let pct = event.pct != null ? event.pct : null;
+            if (pct == null && step != null) {
+              pct = Math.round((step / total) * 100);
+            }
+            if (pct != null && progressBarFill) {
               progressBarFill.style.width = pct + '%';
               if (progressPercent) progressPercent.textContent = pct + '%';
             }
-            if (progressStepTitle) progressStepTitle.textContent = event.message;
+
+            let cleanMsg = event.message.trim();
+            cleanMsg = cleanMsg.replace(/^\[SKP->IFC\]\s*/i, '');
+            cleanMsg = cleanMsg.replace(/^\[\d+\/\d+\]\s*/, '');
+            if (progressStepTitle) progressStepTitle.textContent = cleanMsg;
           } else if (event.type === 'error') {
+            stopProgressTimer();
             es.close();
             if (progressContainer) progressContainer.style.display = 'none';
             reject(new Error(event.message || 'Conversion failed'));
           } else if (event.type === 'result') {
+            stopProgressTimer();
             const data = event;
             lastConvertedDataset = data.dataset;
             if (progressBarFill) progressBarFill.style.width = '100%';
@@ -615,6 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusBanner.textContent = 'Processing failed: ' + err.message;
       statusBanner.style.display = 'block';
     } finally {
+      stopProgressTimer();
       btnSubmit.classList.remove('loading');
       if (selectedFile) {
         btnSubmit.disabled = false;

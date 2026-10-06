@@ -260,8 +260,11 @@
             <!-- Progress & Live Log Container -->
             <div id="progressContainer" style="display: none; margin-bottom: 20px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div id="progressStepTitle" style="font-size: 13px; font-weight: 600; color: var(--text-primary);">Starting conversion...</div>
-                <div id="progressPercent" style="font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text-secondary);">0%</div>
+                <div id="progressStepTitle" style="font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 75%;">Starting conversion...</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="progressTimer" style="font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); display: none;">00:00</span>
+                  <span id="progressPercent" style="font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text-secondary);">0%</span>
+                </div>
               </div>
               <div class="progress-bar-wrap">
                 <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>

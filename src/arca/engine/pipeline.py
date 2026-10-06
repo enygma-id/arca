@@ -50,12 +50,22 @@ from arca.engine.utils import (
 )
 
 
-def _log(progress_cb, msg: str, step: int | None = None, total: int = 5) -> None:
+def _log(
+    progress_cb,
+    msg: str,
+    step: int | None = None,
+    total: int = 5,
+    pct: int | None = None,
+) -> None:
     if progress_cb is not None:
         event: dict = {"type": "progress", "message": msg}
         if step is not None:
             event["step"] = step
             event["total"] = total
+            if pct is None:
+                pct = int((step / total) * 100)
+        if pct is not None:
+            event["pct"] = pct
         progress_cb(event)
     else:
         print(msg)
@@ -98,13 +108,14 @@ def preprocess(
         for removed in clean_previous_outputs(out_dir):
             _log(progress_cb, f"      removed old output: {removed}")
 
-    _log(progress_cb, "[1/5] Loading IFC model ...", step=1)
+    _log(progress_cb, "[1/5] Loading IFC model ...", step=1, pct=22)
     E, entity_counts = load_ifc(ifc_path)
     _log(
         progress_cb,
         "[2/5] Extracting IFC geometry for "
         f"{generate_mode.upper()} (envelope={'yes' if generate_envelope else 'no'}) ...",
         step=2,
+        pct=45,
     )
 
     if ignore_georef:
@@ -229,7 +240,7 @@ def preprocess(
     if not np.isfinite(global_min).all():
         raise RuntimeError("IFC parsed but no supported geometry was extracted.")
 
-    _log(progress_cb, "[3/5] Finalizing GLB ..." if generate_glb else "[3/5] GLB skipped ...", step=3)
+    _log(progress_cb, "[3/5] Finalizing GLB ..." if generate_glb else "[3/5] GLB skipped ...", step=3, pct=68)
     glb_manifest = (
         glb_writer.finalize(resolved_lon, resolved_lat, georef=georef)
         if glb_writer is not None
@@ -239,7 +250,7 @@ def preprocess(
     minx, miny, minz = global_min
     maxx, maxy, maxz = global_max
 
-    _log(progress_cb, "[4/5] Writing selected GIS outputs ...", step=4)
+    _log(progress_cb, "[4/5] Writing selected GIS outputs ...", step=4, pct=85)
     lod13 = (
         write_lod13_from_plateaus(
             out_dir=out_dir,
@@ -382,7 +393,7 @@ def preprocess(
     }
     write_json(out_dir / "metadata.json", metadata)
 
-    _log(progress_cb, "[5/5] SUCCESS", step=5)
+    _log(progress_cb, "[5/5] SUCCESS", step=5, pct=100)
     _log(progress_cb, f"  Dataset        : {dataset}")
     _log(progress_cb, f"  Generate mode  : {generate_mode}")
     _log(progress_cb, f"  LOD1.3         : {lod13['feature_count'] if lod13 else 0:,} features")
@@ -499,10 +510,10 @@ def sync_latest_viewer(
         "big_tile_url",
         "https://geoservices.big.go.id/rbi/rest/services/BASEMAP/Rupabumi_Indonesia/MapServer/tile/{z}/{y}/{x}",
     )
-    settings.setdefault("big_max_zoom", 16)
+    settings.setdefault("big_max_zoom", 15)
     settings.setdefault("osm_tile_url", "https://tile.openstreetmap.org/{z}/{x}/{y}.png")
     settings.setdefault("osm_max_zoom", 19)
-    settings.setdefault("big_osm_gap_fill", True)
+    settings.setdefault("big_osm_gap_fill", False)
 
     metadata = dict(metadata)
     metadata["_out_dir"] = str(target)
@@ -766,7 +777,7 @@ def process_one(
     meta_info = parse_metadata_json(meta_file) if meta_file else None
 
     if fmt == "SKP":
-        _log(progress_cb, f"[0/5] Ingesting SketchUp (.skp): {input_path.name}", step=0)
+        _log(progress_cb, f"[0/5] Ingesting SketchUp (.skp): {input_path.name}", step=0, pct=3)
         skp_georef = extract_skp_georeference(
             skp_path=input_path,
             fallback_lon=args.anchor_lon,
@@ -775,7 +786,7 @@ def process_one(
             fallback_rotate=args.rotate,
             metadata_info=meta_info,
         )
-        _log(progress_cb, f"      SKP Georeference source: {skp_georef['source']}")
+        _log(progress_cb, f"      SKP Georeference source: {skp_georef['source']}", pct=5)
         _log(progress_cb, f"      CRS: {skp_georef['crs']}, Anchor: ({skp_georef['longitude']:.8f}, {skp_georef['latitude']:.8f})")
         _log(progress_cb, f"      UTM Map Origin: E={skp_georef['easting']:.3f}, N={skp_georef['northing']:.3f}")
 
@@ -786,7 +797,7 @@ def process_one(
             georef=skp_georef,
             progress_cb=progress_cb,
         )
-        _log(progress_cb, f"      Generated georeferenced IFC4: {intermediate_ifc.name}")
+        _log(progress_cb, f"      Generated georeferenced IFC4: {intermediate_ifc.name}", pct=20)
         actual_ifc_path = intermediate_ifc
         source_format = "SKP"
     elif fmt == "IFC":

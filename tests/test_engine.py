@@ -117,6 +117,8 @@ def test_convert_skp_to_georef_ifc_progress_callback(tmp_path, monkeypatch):
     res = convert_skp_to_georef_ifc(dummy_skp, out_ifc, georef, progress_cb=callback)
     assert res == out_ifc
     assert len(events) >= 5
+    assert all("pct" in e for e in events)
+    assert events[0]["pct"] < events[-1]["pct"]
     messages = [e["message"] for e in events]
     assert any("Reading SketchUp file" in m for m in messages)
     assert any("Coordinate orientation corrected" in m for m in messages)
@@ -161,6 +163,7 @@ def test_triangulate_polygon_3d():
         poly_2d = Polygon(t[:, :2])
         assert not poly_2d.contains(Point(1.9, 1.9))
         assert np.allclose(t[:, 2], 5.0)
+
 
 
 

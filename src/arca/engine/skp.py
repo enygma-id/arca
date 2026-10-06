@@ -288,17 +288,20 @@ def convert_skp_to_georef_ifc(
             "Package 'openskp' is required for SKP conversion. Run: pip install openskp"
         )
 
-    def _skp_log(msg: str):
+    def _skp_log(msg: str, pct: int | None = None):
         if progress_cb is not None:
-            progress_cb({"type": "progress", "message": msg, "step": 0, "total": 5})
+            ev = {"type": "progress", "message": msg, "step": 0, "total": 5}
+            if pct is not None:
+                ev["pct"] = pct
+            progress_cb(ev)
         else:
             print(msg)
 
     out_ifc_path.parent.mkdir(parents=True, exist_ok=True)
-    _skp_log(f"      [SKP->IFC] Reading SketchUp file: {skp_path.name}")
+    _skp_log(f"      [SKP->IFC] Reading SketchUp file: {skp_path.name}", pct=4)
     skp = SkpFile.open(str(skp_path))
 
-    _skp_log("      [SKP->IFC] Building geometry scene & triangulation (OpenSKP)...")
+    _skp_log("      [SKP->IFC] Building geometry scene & triangulation (OpenSKP)...", pct=8)
     try:
         scene = skp.build_scene()
     except Exception as exc:
@@ -311,13 +314,13 @@ def convert_skp_to_georef_ifc(
             ) from exc
         raise
     prims = getattr(scene, "glb_primitives", [])
-    _skp_log(f"      [SKP->IFC] Detected {len(prims):,} mesh primitive(s)")
+    _skp_log(f"      [SKP->IFC] Detected {len(prims):,} mesh primitive(s)", pct=11)
 
-    _skp_log("      [SKP->IFC] Correcting coordinate orientation (glTF Y-up -> IFC Z-up)...")
+    _skp_log("      [SKP->IFC] Correcting coordinate orientation (glTF Y-up -> IFC Z-up)...", pct=13)
     v_count = restore_skp_orientation_for_ifc(scene)
-    _skp_log(f"      [SKP->IFC] Coordinate orientation corrected ({v_count:,} vertices)")
+    _skp_log(f"      [SKP->IFC] Coordinate orientation corrected ({v_count:,} vertices)", pct=14)
 
-    _skp_log("      [SKP->IFC] Converting semantic elements (bilingual ID/EN) & exporting IFC4...")
+    _skp_log("      [SKP->IFC] Converting semantic elements (bilingual ID/EN) & exporting IFC4...", pct=16)
     openskp_ifc.export(
         scene,
         str(out_ifc_path),
@@ -326,7 +329,7 @@ def convert_skp_to_georef_ifc(
         classifier=bilingual_classifier,
     )
 
-    _skp_log("      [SKP->IFC] Injecting buildingSMART georeferencing (IFCMAPCONVERSION, IFCPROJECTEDCRS)...")
+    _skp_log("      [SKP->IFC] Injecting buildingSMART georeferencing (IFCMAPCONVERSION, IFCPROJECTEDCRS)...", pct=18)
     inject_georeference_into_step(
         ifc_path=out_ifc_path,
         out_path=out_ifc_path,
@@ -339,5 +342,5 @@ def convert_skp_to_georef_ifc(
         northing=georef["northing"],
         north_angle=georef["north_angle"],
     )
-    _skp_log(f"      [SKP->IFC] Generated intermediate IFC: {out_ifc_path.name}")
+    _skp_log(f"      [SKP->IFC] Generated intermediate IFC: {out_ifc_path.name}", pct=19)
     return out_ifc_path
