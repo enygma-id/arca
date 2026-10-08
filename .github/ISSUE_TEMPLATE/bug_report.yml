@@ -1,0 +1,31 @@
+name: Bug report
+description: Report reproducible incorrect ARCA behavior
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe what happened and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Include command, parameters, model file format (IFC / SKP), version, and minimal steps to reproduce.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, ARCA version/commit, relevant dependency versions.
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context / Sample Files
+      description: Error logs, stack trace, screenshot, or sample model snippet (if non-confidential).

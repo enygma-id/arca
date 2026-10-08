@@ -7,6 +7,8 @@ transforming authoritative digital-asset representations into lighter,
 interoperable spatial representations without treating the original BIM model
 as disposable.
 
+**[Live Preview](https://arca.enygma.id/)** · [Quick Start](#quick-start) · [Sample Dataset](#sample-dataset)
+
 **Founded and stewarded by Enygma.**  
 Legal entity: **PT Enygma Solusi Negeri**
 
@@ -97,7 +99,7 @@ ARCA generalization
 GIS-native output
 ```
 
-## Quickstart
+## Quick start
 
 End users can install the engine and server with pip:
 
@@ -124,7 +126,7 @@ uv run arca inspect input_model.ifc
 
 `uv` creates and uses `.venv`. Shell activation is optional.
 
-## Sample Datasets
+## Sample Dataset
 
 ARCA includes ready-to-use sample datasets for reproducible research, testing, and demonstration:
 

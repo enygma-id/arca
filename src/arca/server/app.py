@@ -11,6 +11,8 @@ import json
 import mimetypes
 import re
 import shutil
+import signal
+import socketserver
 import sys
 import tempfile
 import threading
@@ -21,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from .. import __version__, engine
+from .. import __version__
 
 _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
@@ -156,8 +158,11 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         if self.command != "HEAD":
-            with open(file_path, "rb") as f:
-                shutil.copyfileobj(f, self.wfile)
+            try:
+                with open(file_path, "rb") as f:
+                    shutil.copyfileobj(f, self.wfile)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def do_HEAD(self):
         self.do_GET()
@@ -174,7 +179,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             "items": [],
             "settings": {
                 "default_engine": "maplibre",
-                "default_basemap": "big",
+                "default_basemap": "osm",
                 "display_lod": "LOD 1.3",
                 "enabled_representations": ["lod1_3", "glb"],
                 "big_osm_gap_fill": False,
@@ -507,6 +512,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                     tmp_m.write(meta_bytes)
                     tmp_meta_path = Path(tmp_m.name)
 
+        from .. import engine
         try:
             res = engine.inspect_model_file(tmp_path, metadata_path=tmp_meta_path)
             res["filename"] = original_name
@@ -550,6 +556,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
         if ext not in {".ifc", ".skp"}:
             self.send_json({"success": False, "error": f"Format '{ext}' not supported. Must be .ifc or .skp"}, status=400)
             return
+
+        from .. import engine
 
         raw_stem = Path(original_name).stem
         safe_stem = engine.safe_slug(raw_stem)
@@ -676,7 +684,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 "elapsed_sec": elapsed_sec,
             }
 
-            b_name = metadata.get("name") or metadata.get("building_name") or upload_file.stem
+            b_name = metadata.get("name") or metadata.get("building_name") or saved_input.stem
             clean_b_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', str(b_name).strip())
             files_info = {}
             if geojson_file.exists():
@@ -722,7 +730,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
 
         cursor = 0
         try:
-            while True:
+            while not getattr(self.server, "is_shutting_down", False):
                 with job["lock"]:
                     pending = job["events"][cursor:]
                     cursor = len(job["events"])
@@ -738,10 +746,20 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
 
 
 class StudioServer(ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        host, _ = self.server_address[:2]
+        self.server_name = host
+        self.server_port = self.socket.getsockname()[1]
+
     def __init__(self, server_address, RequestHandlerClass, workspace: Path):
         super().__init__(server_address, RequestHandlerClass)
         self.workspace = workspace.expanduser().resolve()
         self.workspace.mkdir(parents=True, exist_ok=True)
+        self.is_shutting_down = False
 
 
 def start_studio(
@@ -753,26 +771,78 @@ def start_studio(
     if workspace is None:
         workspace = Path.cwd() / "arca_workspace"
 
+    stop_event = threading.Event()
+
+    def _sig_handler(signum, frame):
+        stop_event.set()
+
+    orig_sigint = None
+    orig_sigterm = None
+    orig_sigbreak = None
+    try:
+        orig_sigint = signal.signal(signal.SIGINT, _sig_handler)
+        orig_sigterm = signal.signal(signal.SIGTERM, _sig_handler)
+        if hasattr(signal, "SIGBREAK"):
+            orig_sigbreak = signal.signal(signal.SIGBREAK, _sig_handler)
+    except (ValueError, AttributeError):
+        pass
+
     server = StudioServer((host, port), StudioRequestHandler, workspace=workspace)
+    port = server.server_port
     url = f"http://{'localhost' if host in {'127.0.0.1', '0.0.0.0'} else host}:{port}/"
 
-    print("=" * 68)
-    print(f"  ARCA Studio v{__version__}")
-    print(f"  Web UI Ingestion : {url}")
-    print(f"  3D GIS Viewer    : {url}viewer/viewer.html")
-    print(f"  Workspace Folder : {workspace}")
-    print("=" * 68)
-    print("  Server is active. Tekan Ctrl+C untuk keluar.\n")
+    server_thread = threading.Thread(
+        target=server.serve_forever,
+        kwargs={"poll_interval": 0.2},
+        daemon=True,
+    )
+    server_thread.start()
 
     if open_browser:
         def _opener():
-            time.sleep(1.0)
-            webbrowser.open(url)
+            if not stop_event.wait(timeout=1.0):
+                webbrowser.open(url)
         threading.Thread(target=_opener, daemon=True).start()
 
+    print("=" * 68, flush=True)
+    print(f"  ARCA Studio v{__version__}", flush=True)
+    print(f"  Web UI Ingestion : {url}", flush=True)
+    print(f"  3D GIS Viewer    : {url}viewer/viewer.html", flush=True)
+    print(f"  Workspace Folder : {workspace}", flush=True)
+    print("=" * 68, flush=True)
+    print("  Server is active. Tekan Ctrl+C untuk keluar.\n", flush=True)
+
     try:
-        server.serve_forever()
+        while not stop_event.is_set():
+            time.sleep(0.1)
     except KeyboardInterrupt:
-        print("\nStopping ARCA Studio...")
+        pass
     finally:
+        print("\nStopping ARCA Studio...", flush=True)
+        server.is_shutting_down = True
+        stop_event.set()
+        try:
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            if hasattr(signal, "SIGBREAK"):
+                signal.signal(signal.SIGBREAK, signal.SIG_IGN)
+        except (ValueError, AttributeError):
+            pass
+        server.shutdown()
         server.server_close()
+        server_thread.join(timeout=2.0)
+        if orig_sigint is not None:
+            try:
+                signal.signal(signal.SIGINT, orig_sigint)
+            except (ValueError, AttributeError):
+                pass
+        if orig_sigterm is not None:
+            try:
+                signal.signal(signal.SIGTERM, orig_sigterm)
+            except (ValueError, AttributeError):
+                pass
+        if orig_sigbreak is not None:
+            try:
+                signal.signal(signal.SIGBREAK, orig_sigbreak)
+            except (ValueError, AttributeError):
+                pass

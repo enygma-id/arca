@@ -8,6 +8,7 @@ import shutil
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -502,7 +503,7 @@ def sync_latest_viewer(
 
     settings = data.setdefault("settings", {})
     settings.setdefault("default_engine", "maplibre")
-    settings.setdefault("default_basemap", "big")
+    settings.setdefault("default_basemap", "osm")
     settings["display_lod"] = "LOD 1.3"
     settings["source_lod_key"] = "lod1_3"
     settings["placement_mode"] = placement_mode

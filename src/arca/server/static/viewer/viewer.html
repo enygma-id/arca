@@ -84,12 +84,12 @@
 
         <div class="section">
           <label class="field-label" for="basemapSelect">Basemap</label>
-          <select id="basemapSelect" class="select-control">
+          <select id="basemapSelect" class="select-control" autocomplete="off">
+            <option value="osm" selected>OpenStreetMap</option>
             <option value="big">BIG Rupabumi Indonesia</option>
-            <option value="osm">OpenStreetMap</option>
           </select>
           <div class="note">
-            BIG is rendered above an OpenStreetMap safety layer so missing or delayed BIG tiles do not leave black gaps.
+            OpenStreetMap standard basemap dengan opsi BIG Rupabumi Indonesia.
           </div>
         </div>
 
@@ -155,7 +155,7 @@
 
         <div class="map-note">
           <strong id="basemapLabel">Basemap</strong>
-          <span id="basemapCaption">Badan Informasi Geospasial</span>
+          <span id="basemapCaption">© OpenStreetMap contributors</span>
         </div>
 
         <div id="assetCard" class="asset-card" aria-live="polite"></div>

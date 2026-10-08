@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "arca"
 version = "0.2.0"
-description = "BIM-to-GIS ingestion and 3D geospatial visualization engine"
+description = "ARCA BIM-to-GIS ingestion and 3D geospatial visualization engine"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "AGPL-3.0-only"

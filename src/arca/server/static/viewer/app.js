@@ -9,7 +9,9 @@ const viewerNode = document.getElementById("viewer");
 const statusNode = document.getElementById("status");
 const engineLabel = document.getElementById("engineLabel");
 const basemapSelect = document.getElementById("basemapSelect");
+if (basemapSelect) basemapSelect.value = "osm";
 const basemapCaption = document.getElementById("basemapCaption");
+if (basemapCaption) basemapCaption.textContent = "© OpenStreetMap contributors";
 const assetCard = document.getElementById("assetCard");
 const selectedSummary = document.getElementById("selectedSummary");
 const representationBadge = document.getElementById("representationBadge");
@@ -44,7 +46,7 @@ const state = {
     items: [],
     settings: {
       default_engine: "maplibre",
-      default_basemap: "big",
+      default_basemap: "osm",
       enabled_representations: ["lod1_3", "glb"],
       big_osm_gap_fill: false
     }
@@ -54,7 +56,7 @@ const state = {
   assets: [],
   assetById: new Map(),
   engine: "maplibre",
-  basemap: "big",
+  basemap: "osm",
   representation: "lod1_3",
   gisRepresentation: "lod1_3",
   renderer: null,
@@ -686,12 +688,7 @@ function hasGlbAssets() {
 }
 
 function updateRepresentationControls() {
-  const isMapLibre = state.engine === 'maplibre';
-  if (isMapLibre) {
-    glbButton.style.display = 'none';
-  } else {
-    glbButton.style.display = '';
-  }
+  glbButton.style.display = '';
 
   const labels = representationLabels();
   representationBadge.textContent = labels[state.representation] || state.representation;
@@ -707,9 +704,7 @@ function updateRepresentationControls() {
   if (state.representation === 'glb') {
     representationHint.textContent = `GLB renders every configured model (${detailAssets().length} available).`;
   } else {
-    representationHint.textContent = isMapLibre
-      ? 'LOD 1.3 loads every valid GIS building.'
-      : 'LOD 1.3 loads every valid GIS building. Switch to GLB to render all configured models.';
+    representationHint.textContent = 'LOD 1.3 loads every valid GIS building. Switch to GLB to render all configured models.';
   }
 }
 
@@ -775,7 +770,7 @@ async function loadDataset() {
       items: [],
       settings: {
         default_engine: "maplibre",
-        default_basemap: "big",
+        default_basemap: "osm",
         enabled_representations: ["lod1_3", "glb"],
         big_osm_gap_fill: true
       }
@@ -793,10 +788,10 @@ async function loadDataset() {
 
   const s = state.config?.settings || {};
   state.engine = s.default_engine || 'maplibre';
-  state.basemap = s.default_basemap || 'big';
+  state.basemap = (s.default_basemap === 'big') ? 'osm' : (s.default_basemap || 'osm');
   state.gisRepresentation = 'lod1_3';
   state.representation = 'lod1_3';
-  basemapSelect.value = state.basemap;
+  if (basemapSelect) basemapSelect.value = state.basemap;
 
   const enabledReps = new Set(s.enabled_representations || ['lod1_3','glb']);
   document.querySelectorAll('.representation-btn').forEach(btn => {
@@ -976,31 +971,28 @@ function showAssetCard(asset) {
     ['Rotate', `${asset.item.rotate ?? 0}°`]
   ].filter(([,v]) => v !== null && v !== undefined && v !== '');
 
-  const isMapLibre = state.engine === 'maplibre';
   const isGlb = state.representation === 'glb';
   const sourceText = isGlb ? 'GLB 3D' : representationLabel(asset.sourceKey || state.gisRepresentation);
   const displayBytes = isGlb ? (asset.glbBytes || asset.item?.detail?.bytes || null) : asset.bytes;
 
   let repSwitchHtml = '';
-  if (!isMapLibre) {
-    if (isGlb) {
-      repSwitchHtml = `
-        <div class="asset-key">LOD 1.3</div>
-        <div class="asset-value">
-          <button id="btnSwitchToLod" type="button" class="btn-rep-toggle">Switch to LOD 1.3 (${formatBytes(asset.bytes)})</button>
-        </div>`;
-    } else if (asset.item.detail?.glb) {
-      const glbKnownBytes = asset.glbBytes || asset.item.detail?.bytes;
-      repSwitchHtml = `
-        <div class="asset-key">GLB</div>
-        <div class="asset-value">
-          <button id="btnSwitchToGlb" type="button" class="btn-rep-toggle">Show GLB ${glbKnownBytes ? `(${formatBytes(glbKnownBytes)})` : ''}</button>
-        </div>`;
-    } else {
-      repSwitchHtml = `
-        <div class="asset-key">GLB</div>
-        <div class="asset-value">Not configured</div>`;
-    }
+  if (isGlb) {
+    repSwitchHtml = `
+      <div class="asset-key">LOD 1.3</div>
+      <div class="asset-value">
+        <button id="btnSwitchToLod" type="button" class="btn-rep-toggle">Switch to LOD 1.3 (${formatBytes(asset.bytes)})</button>
+      </div>`;
+  } else if (asset.item.detail?.glb) {
+    const glbKnownBytes = asset.glbBytes || asset.item.detail?.bytes;
+    repSwitchHtml = `
+      <div class="asset-key">GLB</div>
+      <div class="asset-value">
+        <button id="btnSwitchToGlb" type="button" class="btn-rep-toggle">Show GLB ${glbKnownBytes ? `(${formatBytes(glbKnownBytes)})` : ''}</button>
+      </div>`;
+  } else {
+    repSwitchHtml = `
+      <div class="asset-key">GLB</div>
+      <div class="asset-value">Not configured</div>`;
   }
 
   assetCard.innerHTML = `
@@ -1072,6 +1064,7 @@ function getOsmBasemapConfig() {
     label:'OpenStreetMap',
     caption:'© OpenStreetMap contributors',
     tile:s.osm_tile_url || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    minZoom:Number(s.osm_min_zoom ?? 0),
     maxZoom:Number(s.osm_max_zoom ?? 19),
     attribution:'© OpenStreetMap contributors'
   };
@@ -1650,8 +1643,12 @@ class MapLibreRenderer {
   }
 
   async installDetail(asset, loadToken){
-    if(!this.map?.isStyleLoaded()){
-      throw new Error('MapLibre style is not ready for GLB');
+    if(!this.map) return;
+    if(!this.map.getStyle()){
+      await waitForMapEvent(this.map, 'load', 8000);
+      if(!this.map.getStyle()){
+        throw new Error('MapLibre style is not ready for GLB');
+      }
     }
 
     const placement=await detailPlacementForAsset(asset);
@@ -1676,6 +1673,9 @@ class MapLibreRenderer {
       }
       this.detailLayers.set(layer.id,layer);
       try{
+        if(this.map.getLayer(layer.id)){
+          this.map.removeLayer(layer.id);
+        }
         this.map.addLayer(layer);
       }catch(error){
         clearTimeout(timer);
@@ -1894,7 +1894,7 @@ class CesiumRenderer {
     const b=getBasemapConfig();
     this.imagery=this.viewer.imageryLayers.addImageryProvider(
       new Cesium.UrlTemplateImageryProvider({
-        url:b.tile,minimumLevel:b.minZoom??5,maximumLevel:b.maxZoom,credit:new Cesium.Credit(b.attribution)
+        url:b.tile,minimumLevel:b.minZoom??0,maximumLevel:b.maxZoom,credit:new Cesium.Credit(b.attribution)
       })
     );
     if(b.id==='big')this.imagery.alpha=1.0;
@@ -1997,9 +1997,6 @@ const engineNames={maplibre:'MapLibre GL JS',deck:'Deck.gl',cesium:'CesiumJS'};
 async function switchEngine(engine){
   if(state.renderer){state.renderer.destroy();state.renderer=null;}
   state.engine=engine;
-  if(engine==='maplibre' && state.representation==='glb'){
-    state.representation=state.gisRepresentation||'enhanced_lod1_3';
-  }
   updateRepresentationControls();
   if(state.selected) showAssetCard(state.selected);
   viewerNode.replaceChildren();
@@ -2107,7 +2104,10 @@ window.addEventListener('unhandledrejection',event=>{
 try{
   await loadDataset();
   const b=getBasemapConfig();
-  basemapCaption.textContent=b.caption;
+  if (basemapSelect) basemapSelect.value = state.basemap;
+  if (basemapCaption) basemapCaption.textContent=b.caption;
+  const basemapLabel = document.getElementById('basemapLabel');
+  if (basemapLabel) basemapLabel.textContent = b.label;
   updateRepresentationControls();
   // Check if container is visible (not display:none). If hidden (SPA tab not yet shown),
   // defer engine init until notifyVisible() is called.

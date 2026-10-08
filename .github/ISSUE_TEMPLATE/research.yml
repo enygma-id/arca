@@ -1,0 +1,26 @@
+name: Research proposal
+description: Propose or evaluate an algorithm, georeferencing method, or spatial research change in ARCA
+title: "[Research] "
+labels: ["research"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Research question
+      description: What spatial, representation, or architectural question does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: Proposed method
+      description: Mathematical, algorithmic, or pipeline transformation details.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: How will fidelity, runtime performance, coordinate accuracy, or standards-compliance be tested?
+    validations:
+      required: true

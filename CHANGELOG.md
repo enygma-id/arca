@@ -7,8 +7,16 @@ All notable project changes should be documented here.
 ### Added
 
 - 3D planar triangulation using Newell normal and Shapely constrained Delaunay triangulation to avoid vertex stretching/distortion on concave and multi-vertex faces in GLB export.
+- Granular progress reporting with dynamic sub-step percentages (`pct`), live elapsed timer (`mm:ss`), and animated shimmer progress bar in Web Studio to eliminate perceived freeze during heavy SketchUp/IFC geometry processing.
+- Companion Metadata JSON auto-discovery and priority resolution (`CLI > Metadata JSON > Internal Model > Fallback`) for IFC and SKP, with CLI flag `--metadata` and Web Studio UI toggle.
+- Metadata JSON defaults `unit` to `auto` when omitted, preventing unwanted unit forcing during model conversion.
+- Building-name-based export filenames for GeoJSON and GLB downloads.
+- MapLibre GL JS 3D GLB rendering support via custom Three.js WebGL layer alongside Deck.gl and CesiumJS.
 - Sample datasets organized under `samples/arca-sample-area-01/` (IFC) and `samples/arca-sample-area-02/` (SKP) with dataset documentation, CC BY 4.0 data licensing, and SHA-256 integrity manifests.
 - Comprehensive 3D Web Viewer Integration Guide (`docs/viewer-guide.md`) detailing standalone implementations for MapLibre GL JS, Deck.gl, and CesiumJS.
+- GitHub Actions continuous integration workflow (`.github/workflows/ci.yml`) testing across Ubuntu, Windows, and macOS on Python 3.10 and 3.12 with uv and pip.
+- GitHub issue templates (`.github/ISSUE_TEMPLATE/`) for bug reports, research proposals, and blank issue configuration.
+- Repository `.gitattributes` for line-ending normalization (LF) and explicit binary asset tracking.
 
 ### Fixed
 

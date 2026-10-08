@@ -1,14 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 from __future__ import annotations
 
-import json
 import math
 import re
 import zipfile
 from pathlib import Path
 from typing import Optional
 
-from .georef import degrees_to_compound_dms, find_metadata_json, latlon_to_utm_wgs84, parse_metadata_json
+from .georef import (
+    degrees_to_compound_dms,
+    find_metadata_json,
+    latlon_to_utm_wgs84,
+    parse_metadata_json,
+)
 from .step import split_top
 
 

@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Normalise line endings so Windows and Linux contributors produce clean diffs.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary formats
+*.glb binary
+*.skp binary
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.whl binary
+*.zip binary
+*.tar.gz binary

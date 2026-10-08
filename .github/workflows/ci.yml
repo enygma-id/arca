@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e ".[dev,server]"
+      - run: ruff check .
+      - run: pytest
+
+  samples-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e ".[dev,server]"
+      - name: Verify CLI inspect on Sample IFC
+        run: python -m arca inspect samples/arca-sample-area-01/data/arca_synthetic_mall_10f.ifc
+      - name: Verify CLI inspect on Sample SKP
+        run: python -m arca inspect samples/arca-sample-area-02/data/arca_synthetic_mall_10f.skp
+
+  uv-workflow:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+      - run: uv sync --extra dev --locked
+      - run: uv run python -c "import arca; print(arca.__version__)"
+      - run: uv run pytest

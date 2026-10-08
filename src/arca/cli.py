@@ -111,12 +111,15 @@ def _run(args: argparse.Namespace) -> int:
 
 def _serve(args: argparse.Namespace) -> int:
     from .server import start_studio
-    start_studio(
-        host=args.host,
-        port=args.port,
-        workspace=args.workspace,
-        open_browser=not args.no_browser,
-    )
+    try:
+        start_studio(
+            host=args.host,
+            port=args.port,
+            workspace=args.workspace,
+            open_browser=not args.no_browser,
+        )
+    except KeyboardInterrupt:
+        pass
     return 0
 
 
@@ -158,6 +161,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[error] {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if events == "jsonl":
+            _emit({"type": "error", "code": "CANCELLED", "message": "Cancelled by user"})
+        else:
+            print("\nCancelled.", file=sys.stderr)
         return 130
     except ArcaError as exc:
         if events == "jsonl":

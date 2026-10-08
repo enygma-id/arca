@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import json
+
 from arca.engine import (
     compound_angle_to_degrees,
     degrees_to_compound_dms,

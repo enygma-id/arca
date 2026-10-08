@@ -61,3 +61,73 @@ def test_api_download_and_history_for_glb(tmp_path):
     assert len(served_files) == 1
     assert served_files[0][1] == "Mall_Mega.geojson"
 
+
+def test_start_studio_clean_shutdown(tmp_path):
+    import signal
+    import subprocess
+    import sys
+    import time
+
+    ws = tmp_path / "ws"
+    kwargs = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-u",
+            "-m",
+            "arca",
+            "serve",
+            "--port",
+            "0",
+            "--workspace",
+            str(ws),
+            "--no-browser",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        **kwargs,
+    )
+
+    started = False
+    output_lines = []
+    try:
+        deadline = time.time() + 30.0
+        while time.time() < deadline:
+            line = proc.stdout.readline()
+            if not line:
+                if proc.poll() is not None:
+                    break
+                time.sleep(0.05)
+                continue
+            output_lines.append(line)
+            if "Server is active" in line:
+                started = True
+                break
+
+        if not started:
+            err = proc.stderr.read() if proc.stderr else ""
+            assert started, f"Server failed to start in time. Output:\n{''.join(output_lines)}\nStderr:\n{err}"
+
+        if sys.platform == "win32":
+            proc.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            proc.send_signal(signal.SIGINT)
+
+        stdout, stderr = proc.communicate(timeout=10.0)
+        full_stdout = "".join(output_lines) + stdout
+        assert proc.returncode in (0, 130, 3221225786)
+        assert "Stopping ARCA Studio..." in full_stdout
+    finally:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3.0)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+
+
+
