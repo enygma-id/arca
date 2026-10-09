@@ -615,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.files && data.files.glb) {
               btnDownloadGLB.href = data.files.glb.url;
-              btnDownloadGLB.download = data.files.glb.name || 'model.glb';
+              btnDownloadGLB.download = data.files.glb.name || 'model_glb.zip';
               btnDownloadGLB.style.display = 'inline-flex';
             } else {
               btnDownloadGLB.style.display = 'none';
@@ -739,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <td style="font-size: 11px; color: var(--text-muted);">${item.timestamp || '-'}</td>
           <td style="text-align: right; white-space: nowrap;">
             ${item.has_geojson ? `<a href="/api/download?dataset=${item.dataset}&file=building.geojson&name=${safeName}" download="${bName}.geojson" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GeoJSON">GeoJSON</a>` : ''}
-            ${item.has_glb ? `<a href="/api/download?dataset=${item.dataset}&file=model.glb&name=${safeName}" download="${bName}.glb" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GLB">GLB</a>` : ''}
+            ${item.has_glb ? `<a href="/api/download?dataset=${item.dataset}&file=model_glb.zip&name=${safeName}" download="${bName}_glb.zip" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GLB">GLB</a>` : ''}
             <button type="button" class="btn-link btn-view-model" data-dataset="${item.dataset}" style="padding:2px 6px; font-size:11px; color:var(--accent-blue);" title="View in 3D Viewer">View</button>
             <button type="button" class="btn-link btn-delete-model" data-dataset="${item.dataset}" style="padding:2px 6px; font-size:11px; color:#dc2626;" title="Delete model">Delete</button>
           </td>

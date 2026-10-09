@@ -12,6 +12,23 @@ as disposable.
 **Founded and stewarded by Enygma.**  
 Legal entity: **PT Enygma Solusi Negeri**
 
+## Overview
+
+ARCA converts IFC and SKP building models into GIS-native representations:
+a **LOD 1.3 GeoJSON** and a **georeferenced GLB**
+(full architectural mesh, glTF 2.0). Both outputs share a common WGS84 anchor
+derived from the source model's embedded georeferencing, so they overlay
+precisely on any GIS map without manual alignment.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/arca-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/arca-light.png">
+  <img
+    src="docs/assets/arca-light.png"
+    alt="ARCA: GIS-native LoD 1.3 and hierarchical decomposition"
+    width="100%">
+</picture>
+
 ## Why ARCA Exists
 
 BIM and GIS are both mature disciplines, but they optimize for different

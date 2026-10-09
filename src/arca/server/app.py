@@ -7,7 +7,9 @@ Pure Python standard library implementation.
 
 from __future__ import annotations
 
+import io
 import json
+import math
 import mimetypes
 import re
 import shutil
@@ -19,6 +21,7 @@ import threading
 import time
 import uuid
 import webbrowser
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -164,6 +167,22 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             except (BrokenPipeError, ConnectionResetError):
                 pass
 
+    def send_bytes_response(self, data: bytes, mime_type: str = "application/octet-stream", download_name: str | None = None):
+        self.send_response(200)
+        self.send_header("Content-Type", mime_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        if download_name:
+            self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
+        self.end_headers()
+
+        if self.command != "HEAD":
+            try:
+                self.wfile.write(data)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
     def do_HEAD(self):
         self.do_GET()
 
@@ -218,19 +237,11 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             if not dataset or not filename:
                 self.send_error(400, "Missing dataset or file parameter")
                 return
-            safe_filename = Path(filename).name
-            target = self.workspace / "outputs" / dataset / safe_filename
-            if not target.exists():
-                render_target = self.workspace / "outputs" / dataset / "render" / safe_filename
-                if render_target.exists():
-                    target = render_target
-            if not target.exists():
-                self.send_error(404, f"File {filename} not found in dataset {dataset}")
-                return
 
-            download_name = safe_filename
-            building_name = custom_name.strip()
             dataset_dir = self.workspace / "outputs" / dataset
+            safe_filename = Path(filename).name
+
+            building_name = custom_name.strip()
             if not building_name:
                 meta_file = dataset_dir / "metadata.json"
                 if meta_file.exists():
@@ -250,11 +261,77 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
 
-            if building_name:
-                clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', building_name)
-                ext = Path(safe_filename).suffix
-                download_name = f"{clean_name}{ext}"
+            clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', building_name) if building_name else dataset
 
+            if safe_filename in ("model_glb.zip", "model.zip"):
+                glb_file = dataset_dir / "render" / "model.glb"
+                if not glb_file.exists():
+                    glb_file = dataset_dir / "model.glb"
+                if not glb_file.exists():
+                    self.send_error(404, f"GLB model not found in dataset {dataset}")
+                    return
+
+                geojson_file = dataset_dir / "render" / "model.geojson"
+                if not geojson_file.exists():
+                    geojson_file = dataset_dir / "model.geojson"
+
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(glb_file, arcname="model.glb")
+                    if geojson_file.exists():
+                        zf.write(geojson_file, arcname="model.geojson")
+                    else:
+                        meta_file = dataset_dir / "metadata.json"
+                        if meta_file.exists():
+                            try:
+                                with open(meta_file, "r", encoding="utf-8") as mf:
+                                    meta = json.load(mf)
+                                anchor = meta.get("anchor", {})
+                                georef = meta.get("georeference", {})
+                                synth = {
+                                    "type": "FeatureCollection",
+                                    "features": [{
+                                        "type": "Feature",
+                                        "geometry": {
+                                            "type": "Point",
+                                            "coordinates": [
+                                                anchor.get("lon", 0.0),
+                                                anchor.get("lat", 0.0),
+                                                round(float(georef.get("origin_orthogonal_height", 0.0)), 3),
+                                            ],
+                                        },
+                                        "properties": {
+                                            "id": dataset,
+                                            "name": building_name or dataset,
+                                            "model_url": "./model.glb",
+                                            "scale": 1.0,
+                                            "heading": round(math.degrees(float(georef.get("rotation_rad", 0.0))), 6) if "rotation_rad" in georef else 0.0,
+                                            "pitch": 0.0,
+                                            "roll": 0.0,
+                                            "height_m": round(float(meta.get("summary", {}).get("max_height_m", 0.0)), 3),
+                                            "storeys": meta.get("plateau_count", 0),
+                                            "crs": georef.get("crs_epsg") or "EPSG:4326",
+                                        },
+                                    }],
+                                }
+                                zf.writestr("model.geojson", json.dumps(synth, indent=2))
+                            except Exception:
+                                pass
+
+                download_name = f"{clean_name}_glb.zip"
+                self.send_bytes_response(buf.getvalue(), mime_type="application/zip", download_name=download_name)
+                return
+
+            target = dataset_dir / safe_filename
+            if not target.exists():
+                render_target = dataset_dir / "render" / safe_filename
+                if render_target.exists():
+                    target = render_target
+            if not target.exists():
+                self.send_error(404, f"File {filename} not found in dataset {dataset}")
+                return
+
+            download_name = f"{clean_name}{Path(safe_filename).suffix}" if building_name else safe_filename
             self.send_file_response(target, download_name=download_name)
             return
 
@@ -695,9 +772,9 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 }
             if glb_file.exists():
                 files_info["glb"] = {
-                    "url": f"/api/download?dataset={dataset_id}&file=model.glb&name={clean_b_name}",
+                    "url": f"/api/download?dataset={dataset_id}&file=model_glb.zip&name={clean_b_name}",
                     "size": glb_file.stat().st_size,
-                    "name": f"{clean_b_name}.glb",
+                    "name": f"{clean_b_name}_glb.zip",
                 }
 
             _job_emit(job, {

@@ -356,6 +356,7 @@ def preprocess(
             "envelope": "envelope/manifest.json" if envelope else None,
             "building_overview": "building.geojson" if generate_envelope else None,
             "render_glb": "render/model.glb" if glb_manifest else None,
+            "model_anchor": "render/model.geojson" if glb_manifest else None,
         },
         "anchor": {
             "lon": resolved_lon,
@@ -393,6 +394,37 @@ def preprocess(
         ],
     }
     write_json(out_dir / "metadata.json", metadata)
+
+    if glb_manifest:
+        _model_name = (metadata_info.get("name") if metadata_info else None) or dataset
+        _heading = round(math.degrees(georef.rotation_rad), 6) if georef.is_georeferenced else 0.0
+        _alt = round(float(georef.origin_orthogonal_height), 3)
+        _crs = georef.crs_epsg or "EPSG:4326"
+        _anchor_geojson = {
+            "type": "FeatureCollection",
+            "features": [{
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [resolved_lon, resolved_lat, _alt],
+                },
+                "properties": {
+                    "id": dataset,
+                    "name": _model_name,
+                    "model_url": "./model.glb",
+                    "scale": 1.0,
+                    "heading": _heading,
+                    "pitch": 0.0,
+                    "roll": 0.0,
+                    "height_m": round(float(maxz - minz), 3),
+                    "storeys": storey_count,
+                    "crs": _crs,
+                },
+            }],
+        }
+        render_dir = out_dir / "render"
+        render_dir.mkdir(parents=True, exist_ok=True)
+        write_json(render_dir / "model.geojson", _anchor_geojson)
 
     _log(progress_cb, "[5/5] SUCCESS", step=5, pct=100)
     _log(progress_cb, f"  Dataset        : {dataset}")

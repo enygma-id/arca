@@ -43,7 +43,44 @@ Key attributes for 3D extrusion:
 - Coordinate system: Local topocentric metric coordinates (X = East, Y = Up, Z = South; standard glTF Y-up convention).
 - Geometry origin `(0, 0, 0)` corresponds to the site anchor point defined in `metadata.json`.
 
-### 1.3 Metadata Anchor (`metadata.json`)
+### 1.3 GLB Georeferencing Anchor (`model.geojson`)
+
+Each GLB export is accompanied by a companion `render/model.geojson` — an RFC 7946 GeoJSON `FeatureCollection` with a single `Point` feature that encodes the WGS84 anchor and placement parameters needed to position the GLB on any standard GIS renderer.
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [{
+    "type": "Feature",
+    "geometry": {
+      "type": "Point",
+      "coordinates": [119.4151, -5.14926, 0.0]
+    },
+    "properties": {
+      "id": "mall-01",
+      "name": "Mall XYZ",
+      "model_url": "./model.glb",
+      "scale": 1.0,
+      "heading": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0,
+      "height_m": 48.5,
+      "storeys": 10,
+      "crs": "EPSG:32750"
+    }
+  }]
+}
+```
+
+Key properties:
+- `geometry.coordinates`: `[longitude, latitude, altitude_m]` — the GLB origin `(0, 0, 0)` maps to this WGS84 point.
+- `heading`: yaw clockwise from True North in degrees (ISO 80000-3 / glTF Y-up convention).
+- `pitch`, `roll`: tilt angles in degrees; `0.0` for upright buildings.
+- `model_url`: relative path to the companion GLB file.
+
+In ARCA Studio, the **3D Model (GLB)** download packages both `model.glb` and `model.geojson` into a single ZIP archive (`[name]_glb.zip`).
+
+### 1.4 Metadata Anchor (`metadata.json`)
 
 ```json
 {
@@ -59,7 +96,7 @@ Key attributes for 3D extrusion:
 }
 ```
 
-### 1.4 Basemap Nasional: BIG Rupabumi Indonesia (RBI)
+### 1.5 Basemap Nasional: BIG Rupabumi Indonesia (RBI)
 
 ARCA uses the official **Badan Informasi Geospasial (BIG)** Rupabumi Indonesia tile service as the default basemap:
 
