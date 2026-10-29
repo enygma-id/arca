@@ -1,5 +1,5 @@
 {
-  "purpose": "Initial ARCA third-party license provenance snapshot",
+  "purpose": "ARCA third-party provenance register for observed source snapshot (not a certification of release compliance)",
   "audited_implementation": [
     "bim2gis_geojson_first_v0.12.1",
     "ifc_folder_to_multilod_geojson_v0.2",
@@ -46,19 +46,42 @@
       "bundled_version": "9.3.7",
       "relationship": "vendored offline frontend library",
       "license": "Apache-2.0 / MIT",
-      "path": "src/arca/server/static/vendor/deck.gl-9.3.7.min.js"
+      "path": "src/arca/server/static/vendor/deck.gl-9.3.7.min.js",
+      "reference_status": "NEEDS_VERIFICATION",
+      "bundle_license_notice_status": "NEEDS_VERIFICATION: tagged dist and exact bundled components",
+      "cdn_fallback_version": "9.3.7",
+      "cdn_fallback_url": "https://unpkg.com/deck.gl@9.3.7/dist.min.js"
     },
     "maplibre-gl": {
       "bundled_version": "6.9.0",
       "relationship": "vendored offline frontend library",
       "license": "BSD-3-Clause",
-      "path": "src/arca/server/static/vendor/maplibre-gl-6.9.0.mjs"
+      "path": "src/arca/server/static/vendor/maplibre-gl-6.9.0.mjs",
+      "reference_status": "NEEDS_VERIFICATION",
+      "complete_upstream_license_status": "NEEDS_VERIFICATION: complete v6.9.0 tagged LICENSE.txt; local abbreviated LICENSE retained"
     },
     "three": {
       "bundled_version": "0.185.0",
       "relationship": "vendored offline frontend library",
       "license": "MIT",
-      "path": "src/arca/server/static/vendor/three-0.185.0.module.js"
+      "path": "src/arca/server/static/vendor/three-0.185.0.module.js",
+      "reference_status": "LICENSE_BASIS_VERIFIED_AS_MIT; BUNDLE_ORIGIN_NEEDS_VERIFICATION"
+    },
+    "cesiumjs": {
+      "referenced_version": "1.145",
+      "relationship": "remote browser runtime; not vendored",
+      "license": "Apache-2.0 (main project; nested notices require release-specific review)",
+      "source": "https://github.com/CesiumGS/cesium/releases/tag/1.145",
+      "runtime_base_url": "https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/",
+      "entrypoints": [
+        "src/arca/server/static/index.html",
+        "src/arca/server/static/viewer/viewer.html"
+      ],
+      "notice_file": "third-party/cesium/README.md",
+      "license_text_path": null,
+      "sha256": null,
+      "status": "NEEDS_VERIFICATION",
+      "note": "No Cesium binary shipped in this ZIP; do not claim exact-version 3P notices captured."
     }
   },
   "standards": [
@@ -80,6 +103,91 @@
     "three/LICENSE",
     "trimesh/LICENSE",
     "standards/GEOJSON.md",
-    "standards/IFC.md"
+    "standards/IFC.md",
+    "cesium/README.md",
+    "maplibre-gl/UPSTREAM_NOTICES_STATUS.md",
+    "deck.gl/UPSTREAM_NOTICES_STATUS.md"
+  ],
+  "baseline": "arca-main(1).zip; SHA-256 checked locally on 2026-10-29; Git HEAD equality not independently verified",
+  "updated_at": "2026-10-29",
+  "license_review_status": "PARTIAL_NEEDS_VERIFICATION",
+  "in_scope_note": "Runtime frontend dependencies include CDN CesiumJS and CDN fallback Deck.gl; transitive wheel licenses are platform-dependent.",
+  "dependency_license_integrity_notes": {
+    "numpy": "License snapshot 2.3.5 is not evidence for all conditional wheel resolutions in uv.lock.",
+    "geos": "Actual LGPL obligations depend on linked/bundled wheel distributions and deployment.",
+    "pyproj": "Verify PROJ and relevant data files per platform if redistributed.",
+    "frontend": "Local hashes are fingerprint evidence only, not proof of original upstream provenance."
+  },
+  "vendor_file_inventory": [
+    {
+      "path": "src/arca/server/static/vendor/deck.gl-9.3.7.min.js",
+      "sha256": "d7eb98f1488630acd130e967054bf84b5cdb2f36a0db0e75d7e01b1a844f36f4",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/maplibre-gl-6.9.0.css",
+      "sha256": "8e2dbbab312dc57656fbb76e9fa5308c75c9d7c7ba5808a7d55bcdb64cc813fa",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/maplibre-gl-6.9.0.mjs",
+      "sha256": "0197eee4c6e8fd5d8b68f5f94a23e1c77e0c8fd054c377a280bcd08117aadfc4",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/maplibre-gl-shared.mjs",
+      "sha256": "0aa7432c2d4644e8f46158cc99d0a05e0bf5db98afe6ded2b258a68dcc91bb90",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/maplibre-gl-worker.mjs",
+      "sha256": "836616cb05bef91f9c7f3920ee2aeef648b81cee0645a037e70365286009ac98",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/three-0.185.0.module.js",
+      "sha256": "bbf5ed13fe4373f5bd38b14ea8e62e9f157327da5638edc6d3863e08b167c9c7",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/three-addons/GLTFLoader.js",
+      "sha256": "97642d720f16cc9a0c9844934198e4d0c023bea8e89576d0f7545d03b2d103d2",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/three.core.js",
+      "sha256": "78b2c4218834ca8670547ed2315bfc21a00ff4dc3403bbffc8c31493d31d14de",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/utils/BufferGeometryUtils.js",
+      "sha256": "5c552223a9309883743b80538d6e9cdb45e3227f30d3ec56fb2c39b46e78d595",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    },
+    {
+      "path": "src/arca/server/static/vendor/utils/SkeletonUtils.js",
+      "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f",
+      "verified_on": "2026-10-29",
+      "hash_scope": "exact local ZIP bytes only",
+      "upstream_identity_verified": false
+    }
   ]
 }

@@ -1,178 +1,60 @@
 # Third-Party Software Notices
 
-ARCA Community Edition is licensed under `AGPL-3.0-only` for covered ARCA-owned
-source.
+**ARCA Community — license inventory update, 29 October 2026.**
 
-Third-party software remains subject to its respective upstream copyright,
-license, attribution, patent, and NOTICE terms. Use of a dependency by ARCA
-does not relicense that dependency under the ARCA AGPL.
+ARCA-owned Community source remains licensed under `AGPL-3.0-only` (see [LICENSE](./LICENSE)).
+Third-party code, native libraries, sample data and external services retain their independent terms. No Enygma Community or future Enterprise grant relicenses software or data owned by third parties.
 
-The current implementation incorporates both Python engine dependencies and
-vendored offline frontend geospatial/3D libraries:
+> **Release evidence status:** This document is an accurate inventory of observed baseline integrations and known notices, **not a certification that every exact-version notice obligation is already satisfied**. Entries explicitly marked `NEEDS_VERIFICATION` must be reconciled with exact package/release artifacts before claiming a completed licensing review. See [`docs/compliance/RELEASE_LICENSE_GATES.md`](./docs/compliance/RELEASE_LICENSE_GATES.md).
 
-- OpenSKP;
-- NumPy;
-- Shapely;
-- pyproj;
-- Deck.gl (Apache-2.0 / MIT);
-- MapLibre GL JS (BSD-3-Clause);
-- Three.js (MIT).
+## Frontend and runtime dependencies
 
-OpenSKP 1.2.0 declares NumPy, Trimesh, and Shapely as runtime dependencies.
-Shapely binary distributions may bundle GEOS.
+| Component | Observed version | Delivery in baseline | Upstream license family | Local material / action |
+|---|---|---|---|---|
+| **CesiumJS** | **1.145** | CDN script, CSS and Cesium assets invoked by Studio and viewer | Apache-2.0; third-party notices may also apply | **NEWLY DISCLOSED**. No Cesium distribution is vendored in this ZIP. Exact-version license and bundled third-party notices: `NEEDS_VERIFICATION`. See [`third-party/cesium/README.md`](./third-party/cesium/README.md). |
+| **Deck.gl** | **9.3.7** | Local minified bundle plus remote unpkg fallback | MIT / other licenses as applicable to actual bundled components | Existing [`third-party/deck.gl/LICENSE`](./third-party/deck.gl/LICENSE) contains a mixed synopsis; bundle-level license/notices remain `NEEDS_VERIFICATION`. |
+| **MapLibre GL JS** | **6.9.0** | Local MJS, worker, shared module and CSS | BSD-3-Clause with inherited component notices | [`third-party/maplibre-gl/LICENSE`](./third-party/maplibre-gl/LICENSE) contains a shortened BSD grant; complete tag-specific upstream license/attribution must be added after verification. See [notice status](./third-party/maplibre-gl/UPSTREAM_NOTICES_STATUS.md). |
+| **Three.js** | **0.185.0 (r185)** | Local Three core, module and addons | MIT | [`third-party/three/LICENSE`](./third-party/three/LICENSE). Exact origin of vendored artifacts should be reconciled against tagged release. |
 
-The files in [`third-party/`](./third-party/) preserve a
-founding provenance snapshot of the relevant license texts/notices.
+**Cesium entrypoints (not vendored):**
+`src/arca/server/static/index.html` and `src/arca/server/static/viewer/viewer.html` reference
+`https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/`.
+Both entrypoints also contain a Deck.gl 9.3.7 CDN fallback. CDN delivery does not establish completeness of application redistribution notices.
 
-Captured versions identify the source of those license files; they are **not**
-dependency pins unless a future dependency manifest explicitly pins them.
+**Local vendored files:** `src/arca/server/static/vendor/`. SHA-256 fingerprints of all 10 observed files are recorded in [`third-party/MANIFEST.json`](./third-party/MANIFEST.json); they establish baseline integrity only, **not** equivalence to an official upstream published bundle.
 
-## License and Role Summary
+## Python runtime, transitive dependencies and native code
 
-| Component | License / Basis | ARCA Relationship | Founding Role |
+| Component | Role | Licensing basis | Existing license path / release limitation |
 |---|---|---|---|
-| OpenSKP | MIT | Direct | Reads/builds SKP scene data and provides IFC4 export in the SKP adapter path. |
-| NumPy | BSD-3-Clause plus bundled notices | Direct; also OpenSKP dependency | Numerical arrays, transforms, vector/matrix geometry processing. |
-| Shapely | BSD-3-Clause | Direct; also OpenSKP dependency | Polygon topology, projected unions, topology-preserving simplification/generalization. |
-| pyproj | MIT / PROJ license | Direct | Geodetic coordinate transformations and UTM projections. |
-| GEOS | LGPL-2.1 | Native library commonly bundled with Shapely binary distributions | Geometry engine used underneath Shapely. |
-| Trimesh | MIT | Transitive OpenSKP runtime dependency | Part of the OpenSKP Python runtime dependency graph; ARCA code does not currently import Trimesh directly. |
-| Deck.gl | Apache-2.0 / MIT | Vendored frontend | Large-scale WebGL data overlay rendering in Web Studio viewer. |
-| MapLibre GL JS | BSD-3-Clause | Vendored frontend | Client-side map rendering, camera projection, vector/raster basemap handling. |
-| Three.js | MIT | Vendored frontend | Custom MapLibre layer for rendering 3D GLTF/GLB models with lighting & materials. |
-| IFC4 | Open standard / buildingSMART ecosystem | Input/intermediate standard, not a Python dependency | BIM exchange representation consumed by the ARCA workflow. |
-| GeoJSON | IETF RFC 7946 family / open interchange format | Output representation | Current GIS-native output family. |
+| OpenSKP | SKP ingestion/IFC export | MIT | [`third-party/openskp/LICENSE`](./third-party/openskp/LICENSE); founding snapshot targets 1.2.x |
+| NumPy | Numerical operations | BSD-3-Clause plus possible binary notices | [`third-party/numpy/LICENSE.txt`](./third-party/numpy/LICENSE.txt); reference snapshot 2.3.5 **does not cover every wheel in `uv.lock`** |
+| Shapely | Polygon processing | BSD-3-Clause | [`third-party/shapely/LICENSE.txt`](./third-party/shapely/LICENSE.txt); native GEOS may be included |
+| GEOS | Native geometry engine associated with Shapely builds | LGPL-2.1 basis recorded in reference bundle | [`third-party/shapely/LICENSE_GEOS`](./third-party/shapely/LICENSE_GEOS); verify distributed binary and LGPL obligations per platform |
+| pyproj / PROJ | Coordinate reference transforms | MIT / PROJ terms | [`third-party/pyproj/LICENSE`](./third-party/pyproj/LICENSE) and [`LICENSE_proj`](./third-party/pyproj/LICENSE_proj); data/binary dependencies vary by wheel |
+| Trimesh | Transitive OpenSKP dependency | MIT | [`third-party/trimesh/LICENSE`](./third-party/trimesh/LICENSE); reference snapshot is not a lock pin |
 
-## OpenSKP
+The actual `uv.lock` contains conditionally resolved versions for different Python environments. Do not interpret one founding license snapshot as evidence for every Windows, Linux and macOS wheel. Bundled native elements such as OpenBLAS, libgfortran and libquadmath are **artifact-dependent**, and their applicable terms must be preserved where distributed. The locked/build-time/dev dependency graph is tracked in the administrative register, not all automatically shipped with ARCA.
 
-**Source:** https://github.com/iamahsanmehmood/openskp  
-**PyPI:** https://pypi.org/project/openskp/  
-**License:** MIT  
-**License file:** [`third-party/openskp/LICENSE`](./third-party/openskp/LICENSE)
+## Samples, assets, map services and standards
 
-ARCA uses OpenSKP in the SKP source path:
+- **Sample Area 01 / 02:** separate `samples/*/LICENSE-DATA.md` declares CC BY 4.0 for the synthetic datasets; data license does not relicense the ARCA engine or trademarks. Sample hashes are covered by `samples/*/MANIFEST.sha256`.
+- **Enygma/ARCA branding:** source ownership is declared by Enygma, with optional internal provenance evidence; the source license does not automatically authorize third-party brand impersonation or trademark use.
+- **OpenStreetMap:** underlying OSM data is distinct from the `tile.openstreetmap.org` server terms. Respect provider attribution, cache directives, service restrictions and any applicable data license. Official guidance: https://operations.osmfoundation.org/policies/tiles/ .
+- **BIG Rupabumi Indonesia:** official raster service at `geoservices.big.go.id` is third-party map imagery. Preserve provider credit. Public access **does not by itself grant mirroring, bulk download or republication rights**. Service reference: https://geoservices.big.go.id/rbi/rest/services/BASEMAP/Rupabumi_Indonesia/MapServer .
+- **IFC4 / GeoJSON:** format standards, not dependency license grants; see `third-party/standards/`.
 
-```text
-SKP
- ↓
-OpenSKP
- ↓
-IFC4
- ↓
-ARCA
-```
+For the detailed separation of *viewer tile access* from *redistribution rights*, see [`docs/compliance/MAP_DATA_POLICY.md`](./docs/compliance/MAP_DATA_POLICY.md).
 
-OpenSKP is an independent project. SketchUp is a trademark of Trimble Inc.;
-ARCA does not imply affiliation or endorsement.
+## Sources and outstanding legal evidence
 
-## NumPy
+- Cesium 1.145: https://github.com/CesiumGS/cesium/releases/tag/1.145 and https://github.com/CesiumGS/cesium/tree/1.145
+- Deck.gl 9.3.7: https://github.com/visgl/deck.gl/releases/tag/v9.3.7
+- MapLibre GL JS 6.9.0: https://github.com/maplibre/maplibre-gl-js/releases/tag/v6.9.0
+- Three.js r185: https://github.com/mrdoob/three.js/releases/tag/r185
 
-**Source:** https://github.com/numpy/numpy  
-**License:** BSD-3-Clause with bundled third-party notices in binary distributions  
-**License file:** [`third-party/numpy/LICENSE.txt`](./third-party/numpy/LICENSE.txt)
+**Do not present this inventory as completed evidence for the corresponding upstream license files.** Obtain the exact released license/NOTICE and embedded bundle notices in the approval step described in [`docs/compliance/UPSTREAM_LICENSE_FETCH.md`](./docs/compliance/UPSTREAM_LICENSE_FETCH.md).
 
-ARCA uses NumPy for numerical geometry processing, coordinate transforms,
-matrix operations, and mesh/face calculations.
+## Enterprise licensing boundary
 
-The preserved NumPy license file includes notices applicable to the reference
-binary distribution from which it was captured.
-
-## Shapely
-
-**Source:** https://github.com/shapely/shapely  
-**License:** BSD-3-Clause  
-**License file:** [`third-party/shapely/LICENSE.txt`](./third-party/shapely/LICENSE.txt)
-
-ARCA uses Shapely for topology-preserving planar geometry work, including
-polygon unions and simplification used by generalized building
-representations.
-
-## pyproj
-
-**Source:** https://github.com/pyproj4/pyproj  
-**License:** MIT (pyproj) and MIT-style (PROJ)  
-**License files:** [`third-party/pyproj/LICENSE`](./third-party/pyproj/LICENSE), [`third-party/pyproj/LICENSE_proj`](./third-party/pyproj/LICENSE_proj)
-
-ARCA uses pyproj for cartographic transformations, geodesic computations, and
-UTM projection resolution in `engine/georef.py`.
-
-## GEOS
-
-**Source:** https://libgeos.org/  
-**License basis in captured Shapely binary:** LGPL-2.1  
-**License file:** [`third-party/shapely/LICENSE_GEOS`](./third-party/shapely/LICENSE_GEOS)
-
-GEOS is not imported directly by ARCA Python code, but may be present as the
-native geometry engine distributed with Shapely binaries.
-
-Binary redistributors must preserve the applicable GEOS terms.
-
-## Trimesh
-
-**Source:** https://github.com/mikedh/trimesh  
-**License:** MIT  
-**License file:** [`third-party/trimesh/LICENSE`](./third-party/trimesh/LICENSE)
-
-The audited ARCA Python files do not currently import Trimesh directly.
-It is recorded because OpenSKP 1.2.0 declares Trimesh as a Python runtime
-dependency.
-
-## Deck.gl
-
-**Source:** https://github.com/visgl/deck.gl  
-**Version:** 9.3.7 (vendored offline)  
-**License:** Apache-2.0 / MIT  
-**License file:** [`third-party/deck.gl/LICENSE`](./third-party/deck.gl/LICENSE)  
-**Path:** `src/arca/server/static/vendor/deck.gl-9.3.7.min.js`
-
-ARCA uses Deck.gl for WebGL-accelerated data visualization layers in the interactive Web Studio.
-
-## MapLibre GL JS
-
-**Source:** https://github.com/maplibre/maplibre-gl-js  
-**Version:** 6.9.0 (vendored offline)  
-**License:** BSD-3-Clause  
-**License file:** [`third-party/maplibre-gl/LICENSE`](./third-party/maplibre-gl/LICENSE)  
-**Path:** `src/arca/server/static/vendor/maplibre-gl-6.9.0.mjs`
-
-ARCA uses MapLibre GL JS as the foundational 2D/3D geospatial map rendering engine for coordinate projections, basemaps (BIG & OSM), and camera controls.
-
-## Three.js
-
-**Source:** https://github.com/mrdoob/three.js  
-**Version:** 0.185.0 (vendored offline)  
-**License:** MIT  
-**License file:** [`third-party/three/LICENSE`](./third-party/three/LICENSE)  
-**Path:** `src/arca/server/static/vendor/three-0.185.0.module.js`
-
-ARCA integrates Three.js via a custom MapLibre GL layer (`viewer/app.js`) to parse and render 3D `.glb` assets with PBR shading, orientation, and shadow mapping.
-
-## Standards
-
-### IFC4
-
-ARCA consumes IFC4-style data in the founding pipeline.
-
-See [`third-party/standards/IFC.md`](./third-party/standards/IFC.md).
-
-### GeoJSON
-
-ARCA currently produces GIS-native GeoJSON derivatives.
-
-See [`third-party/standards/GEOJSON.md`](./third-party/standards/GEOJSON.md).
-
-## Enterprise Licensing Boundary
-
-Alternative or commercial licensing offered by Enygma applies only to material
-for which Enygma has sufficient licensing authority.
-
-Third-party components remain governed by their original licenses in Community
-and Enterprise distributions.
-
-## License Compatibility vs Security
-
-This file records attribution and license provenance.
-
-It does not certify that a particular dependency version is free from security
-vulnerabilities, nor does it substitute for legal review of a specific
-distribution artifact.
+Commercial rights in ARCA-owned code may be granted by PT Enygma Solusi Negeri only to the extent it holds sufficient rights; upstream third-party terms remain in force for any components included in either edition. `CLA.md` remains expressly **draft for legal review**; no contribution agreement is deemed executed by this notice. For internal counsel review see `docs/compliance/CLA_LEGAL_REVIEW_CHECKLIST.md`.
