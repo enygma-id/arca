@@ -7,10 +7,10 @@ The manifest [`MANIFEST.json`](./MANIFEST.json) enumerates **observed** library 
 
 | Component | Use / delivery | Local evidence | Review status |
 |---|---|---|---|
-| CesiumJS 1.145 | Remote browser CDN, two entrypoints | [`cesium/README.md`](./cesium/README.md) | Exact release notices outstanding |
-| Deck.gl 9.3.7 | Local bundle + remote fallback | [`deck.gl/LICENSE`](./deck.gl/LICENSE), [`deck.gl/UPSTREAM_NOTICES_STATUS.md`](./deck.gl/UPSTREAM_NOTICES_STATUS.md) | Bundle notice map outstanding |
-| MapLibre 6.9.0 | Local modules / worker / CSS | [`maplibre-gl/LICENSE`](./maplibre-gl/LICENSE), [`maplibre-gl/UPSTREAM_NOTICES_STATUS.md`](./maplibre-gl/UPSTREAM_NOTICES_STATUS.md) | Full tagged license outstanding |
-| Three.js r185 | Local module/core/addons | [`three/LICENSE`](./three/LICENSE) | License basis captured; file provenance needs mapping |
+| CesiumJS 1.145 | Remote browser CDN, two entrypoints | [`cesium/LICENSE.md`](./cesium/LICENSE.md), [`cesium/ThirdParty.json`](./cesium/ThirdParty.json) | Tagged texts archived; CDN release/bundle notice review pending |
+| Deck.gl 9.3.7 | Local bundle + remote fallback | [`deck.gl/LICENSE.upstream-v9.3.7`](./deck.gl/LICENSE.upstream-v9.3.7), [`deck.gl/UPSTREAM_NOTICES_STATUS.md`](./deck.gl/UPSTREAM_NOTICES_STATUS.md) | Root license archived; exact bundle notice mapping pending |
+| MapLibre 6.9.0 | Local modules / worker / CSS | [`maplibre-gl/LICENSE.upstream-v6.9.0.txt`](./maplibre-gl/LICENSE.upstream-v6.9.0.txt) | Complete tagged text archived; bundle provenance pending |
+| Three.js r185 | Local module/core/addons | [`three/LICENSE.upstream-r185`](./three/LICENSE.upstream-r185) | Tagged text archived; vendored artifact mapping pending |
 | OpenSKP | Python runtime | [`openskp/LICENSE`](./openskp/LICENSE) | Reference 1.2.x; verify installed version |
 | NumPy | Python runtime + optional native binary | [`numpy/LICENSE.txt`](./numpy/LICENSE.txt) | Reference snapshot not all wheel versions |
 | Shapely / GEOS | Python / native | [`shapely/LICENSE.txt`](./shapely/LICENSE.txt), [`LICENSE_GEOS`](./shapely/LICENSE_GEOS) | Binary-dependent LGPL requirements |
@@ -24,7 +24,7 @@ The previously recorded versions (OpenSKP 1.2.x, NumPy 2.3.5, Shapely 2.1.2, pyp
 ## What to do before tagging a release
 
 1. Review `docs/compliance/RELEASE_LICENSE_GATES.md` and `docs/compliance/UPSTREAM_LICENSE_FETCH.md`.
-2. Obtain authoritative version-exact source license texts and `NOTICE`/third-party attribution files; archive SHA-256 and tagged upstream source URLs.
+2. Check archived version-specific upstream texts in `third-party/` and their SHA-256 in `MANIFEST.json`; obtain any remaining bundle-specific notices after inspecting the actual distributed artifact.
 3. For Linux/macOS/Windows builds, reconcile vendored frontend hashes plus Python wheel content.
 4. Resolve legal unknowns with designated human approver. Do **not** change `LICENSE`, engine code, or enterprise features as a substitute for license evidence.
 

@@ -45,27 +45,36 @@
     "deck.gl": {
       "bundled_version": "9.3.7",
       "relationship": "vendored offline frontend library",
-      "license": "Apache-2.0 / MIT",
+      "license": "MIT (tagged root); exact distributed bundle component notices require verification",
       "path": "src/arca/server/static/vendor/deck.gl-9.3.7.min.js",
-      "reference_status": "NEEDS_VERIFICATION",
-      "bundle_license_notice_status": "NEEDS_VERIFICATION: tagged dist and exact bundled components",
+      "reference_status": "TAGGED_LICENSE_ARCHIVED__BUNDLE_OR_DISTRIBUTION_REVIEW_PENDING",
+      "bundle_license_notice_status": "UPSTREAM_ROOT_LICENSE_CAPTURED; DIST_BUNDLE_TRANSITIVE_NOTICES_PENDING",
       "cdn_fallback_version": "9.3.7",
-      "cdn_fallback_url": "https://unpkg.com/deck.gl@9.3.7/dist.min.js"
+      "cdn_fallback_url": "https://unpkg.com/deck.gl@9.3.7/dist.min.js",
+      "upstream_license_text_path": "third-party/deck.gl/LICENSE.upstream-v9.3.7",
+      "upstream_license_text_sha256": "e499a2c2ba3b9faabe91fdfddf43e329439263264b7148e5548d0ec605cce9f2",
+      "upstream_license_document_status": "FETCHED_TAGGED_SOURCE"
     },
     "maplibre-gl": {
       "bundled_version": "6.9.0",
       "relationship": "vendored offline frontend library",
       "license": "BSD-3-Clause",
       "path": "src/arca/server/static/vendor/maplibre-gl-6.9.0.mjs",
-      "reference_status": "NEEDS_VERIFICATION",
-      "complete_upstream_license_status": "NEEDS_VERIFICATION: complete v6.9.0 tagged LICENSE.txt; local abbreviated LICENSE retained"
+      "reference_status": "TAGGED_LICENSE_ARCHIVED__BUNDLE_OR_DISTRIBUTION_REVIEW_PENDING",
+      "complete_upstream_license_status": "TAGGED_LICENSE_CAPTURED; VENDORED_BUNDLE_PROVENANCE_PENDING",
+      "upstream_license_text_path": "third-party/maplibre-gl/LICENSE.upstream-v6.9.0.txt",
+      "upstream_license_text_sha256": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2",
+      "upstream_license_document_status": "FETCHED_TAGGED_SOURCE"
     },
     "three": {
       "bundled_version": "0.185.0",
       "relationship": "vendored offline frontend library",
       "license": "MIT",
       "path": "src/arca/server/static/vendor/three-0.185.0.module.js",
-      "reference_status": "LICENSE_BASIS_VERIFIED_AS_MIT; BUNDLE_ORIGIN_NEEDS_VERIFICATION"
+      "reference_status": "TAGGED_LICENSE_ARCHIVED__BUNDLE_OR_DISTRIBUTION_REVIEW_PENDING",
+      "upstream_license_text_path": "third-party/three/LICENSE.upstream-r185",
+      "upstream_license_text_sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc",
+      "upstream_license_document_status": "FETCHED_TAGGED_SOURCE"
     },
     "cesiumjs": {
       "referenced_version": "1.145",
@@ -78,10 +87,16 @@
         "src/arca/server/static/viewer/viewer.html"
       ],
       "notice_file": "third-party/cesium/README.md",
-      "license_text_path": null,
-      "sha256": null,
+      "license_text_path": "third-party/cesium/LICENSE.md",
+      "sha256": "721844bc0cdaa9b1a9a145dbca1f981e2de15a7e200a5d1fd9f5f1eed8e5d030",
       "status": "NEEDS_VERIFICATION",
-      "note": "No Cesium binary shipped in this ZIP; do not claim exact-version 3P notices captured."
+      "note": "Both upstream documents archived; verify correspondence with actual remote CDN build and complete attribution obligations.",
+      "upstream_license_text_path": "third-party/cesium/LICENSE.md",
+      "upstream_license_text_sha256": "721844bc0cdaa9b1a9a145dbca1f981e2de15a7e200a5d1fd9f5f1eed8e5d030",
+      "upstream_license_document_status": "FETCHED_TAGGED_SOURCE",
+      "reference_status": "TAGGED_LICENSE_ARCHIVED__BUNDLE_OR_DISTRIBUTION_REVIEW_PENDING",
+      "third_party_notice_path": "third-party/cesium/ThirdParty.json",
+      "third_party_notice_sha256": "cef3b6d1cfa17d53ba6d1dcd0005ca2b84d3ed8885e3ebfa346e836830acda39"
     }
   },
   "standards": [
@@ -106,7 +121,12 @@
     "standards/IFC.md",
     "cesium/README.md",
     "maplibre-gl/UPSTREAM_NOTICES_STATUS.md",
-    "deck.gl/UPSTREAM_NOTICES_STATUS.md"
+    "deck.gl/UPSTREAM_NOTICES_STATUS.md",
+    "cesium/LICENSE.md",
+    "maplibre-gl/LICENSE.upstream-v6.9.0.txt",
+    "deck.gl/LICENSE.upstream-v9.3.7",
+    "three/LICENSE.upstream-r185",
+    "cesium/ThirdParty.json"
   ],
   "baseline": "arca-main(1).zip; SHA-256 checked locally on 2026-10-29; Git HEAD equality not independently verified",
   "updated_at": "2026-10-29",
@@ -189,5 +209,76 @@
       "hash_scope": "exact local ZIP bytes only",
       "upstream_identity_verified": false
     }
-  ]
+  ],
+  "upstream_legal_documents": [
+    {
+      "id": "CESIUM-1.145",
+      "key": "cesiumjs",
+      "name": "CesiumJS",
+      "version": "1.145",
+      "path": "third-party/cesium/LICENSE.md",
+      "sha256": "721844bc0cdaa9b1a9a145dbca1f981e2de15a7e200a5d1fd9f5f1eed8e5d030",
+      "size_bytes": 55679,
+      "source_url": "https://raw.githubusercontent.com/CesiumGS/cesium/1.145/LICENSE.md",
+      "status": "FETCHED_TAGGED_SOURCE",
+      "legal_compliance": "NOT_DETERMINED"
+    },
+    {
+      "id": "MAPLIBRE-v6.9.0",
+      "key": "maplibre-gl",
+      "name": "MapLibre GL JS",
+      "version": "6.9.0",
+      "path": "third-party/maplibre-gl/LICENSE.upstream-v6.9.0.txt",
+      "sha256": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2",
+      "size_bytes": 5984,
+      "source_url": "https://raw.githubusercontent.com/maplibre/maplibre-gl-js/v6.9.0/LICENSE.txt",
+      "status": "FETCHED_TAGGED_SOURCE",
+      "legal_compliance": "NOT_DETERMINED"
+    },
+    {
+      "id": "DECK-v9.3.7",
+      "key": "deck.gl",
+      "name": "Deck.gl",
+      "version": "9.3.7",
+      "path": "third-party/deck.gl/LICENSE.upstream-v9.3.7",
+      "sha256": "e499a2c2ba3b9faabe91fdfddf43e329439263264b7148e5548d0ec605cce9f2",
+      "size_bytes": 1055,
+      "source_url": "https://raw.githubusercontent.com/visgl/deck.gl/v9.3.7/LICENSE",
+      "status": "FETCHED_TAGGED_SOURCE",
+      "legal_compliance": "NOT_DETERMINED"
+    },
+    {
+      "id": "THREE-r185",
+      "key": "three",
+      "name": "Three.js",
+      "version": "0.185.0",
+      "path": "third-party/three/LICENSE.upstream-r185",
+      "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc",
+      "size_bytes": 1081,
+      "source_url": "https://raw.githubusercontent.com/mrdoob/three.js/r185/LICENSE",
+      "status": "FETCHED_TAGGED_SOURCE",
+      "legal_compliance": "NOT_DETERMINED"
+    },
+    {
+      "id": "CESIUM-1.145-THIRDPARTY",
+      "key": "cesiumjs-thirdparty",
+      "name": "CesiumJS ThirdParty.json",
+      "version": "1.145",
+      "path": "third-party/cesium/ThirdParty.json",
+      "sha256": "cef3b6d1cfa17d53ba6d1dcd0005ca2b84d3ed8885e3ebfa346e836830acda39",
+      "size_bytes": 3615,
+      "source_url": "https://raw.githubusercontent.com/CesiumGS/cesium/1.145/ThirdParty.json",
+      "status": "FETCHED_TAGGED_SOURCE",
+      "legal_compliance": "NOT_DETERMINED"
+    }
+  ],
+  "upstream_document_reconciliation": {
+    "reconciled_at_utc": "2026-10-29T09:30:26+00:00",
+    "status": "LICENSE_TEXTS_ARCHIVED__BUNDLE_AND_LEGAL_REVIEW_PENDING",
+    "local_legal_text_sha_verified": true,
+    "vendored_files_sha_verified": 10,
+    "notices_bundled_completeness_verified": false,
+    "native_wheels_verified": false,
+    "human_approval_required": true
+  }
 }

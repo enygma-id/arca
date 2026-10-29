@@ -11,10 +11,10 @@ Third-party code, native libraries, sample data and external services retain the
 
 | Component | Observed version | Delivery in baseline | Upstream license family | Local material / action |
 |---|---|---|---|---|
-| **CesiumJS** | **1.145** | CDN script, CSS and Cesium assets invoked by Studio and viewer | Apache-2.0; third-party notices may also apply | **NEWLY DISCLOSED**. No Cesium distribution is vendored in this ZIP. Exact-version license and bundled third-party notices: `NEEDS_VERIFICATION`. See [`third-party/cesium/README.md`](./third-party/cesium/README.md). |
-| **Deck.gl** | **9.3.7** | Local minified bundle plus remote unpkg fallback | MIT / other licenses as applicable to actual bundled components | Existing [`third-party/deck.gl/LICENSE`](./third-party/deck.gl/LICENSE) contains a mixed synopsis; bundle-level license/notices remain `NEEDS_VERIFICATION`. |
-| **MapLibre GL JS** | **6.9.0** | Local MJS, worker, shared module and CSS | BSD-3-Clause with inherited component notices | [`third-party/maplibre-gl/LICENSE`](./third-party/maplibre-gl/LICENSE) contains a shortened BSD grant; complete tag-specific upstream license/attribution must be added after verification. See [notice status](./third-party/maplibre-gl/UPSTREAM_NOTICES_STATUS.md). |
-| **Three.js** | **0.185.0 (r185)** | Local Three core, module and addons | MIT | [`third-party/three/LICENSE`](./third-party/three/LICENSE). Exact origin of vendored artifacts should be reconciled against tagged release. |
+| **CesiumJS** | **1.145** | CDN script, CSS and Cesium assets invoked by Studio and viewer | Apache-2.0; release-specific third-party notices | Fetched upstream [`LICENSE.md`](./third-party/cesium/LICENSE.md) and [`ThirdParty.json`](./third-party/cesium/ThirdParty.json); exact CDN build and notice completeness still `NEEDS_VERIFICATION`. |
+| **Deck.gl** | **9.3.7** | Local minified bundle plus remote unpkg fallback | MIT root; bundled transitive components to verify | Fetched [`v9.3.7 LICENSE`](./third-party/deck.gl/LICENSE.upstream-v9.3.7); attribution and license composition of the shipped bundle still `NEEDS_VERIFICATION`. |
+| **MapLibre GL JS** | **6.9.0** | Local MJS, worker, shared module and CSS | BSD-3-Clause with inherited component notices | Fetched full [`v6.9.0 LICENSE.txt`](./third-party/maplibre-gl/LICENSE.upstream-v6.9.0.txt), including upstream-origin attribution; vendored build provenance remains `NEEDS_VERIFICATION`. |
+| **Three.js** | **0.185.0 (r185)** | Local Three core, module and addons | MIT | Fetched tagged [`r185 LICENSE`](./third-party/three/LICENSE.upstream-r185); exact vendored-file origin still requires comparison. |
 
 **Cesium entrypoints (not vendored):**
 `src/arca/server/static/index.html` and `src/arca/server/static/viewer/viewer.html` reference
@@ -53,7 +53,7 @@ For the detailed separation of *viewer tile access* from *redistribution rights*
 - MapLibre GL JS 6.9.0: https://github.com/maplibre/maplibre-gl-js/releases/tag/v6.9.0
 - Three.js r185: https://github.com/mrdoob/three.js/releases/tag/r185
 
-**Do not present this inventory as completed evidence for the corresponding upstream license files.** Obtain the exact released license/NOTICE and embedded bundle notices in the approval step described in [`docs/compliance/UPSTREAM_LICENSE_FETCH.md`](./docs/compliance/UPSTREAM_LICENSE_FETCH.md).
+**Tagged upstream legal texts and Cesium ThirdParty.json are now archived in `third-party/`**, with SHA-256 in `third-party/MANIFEST.json` and retrieval evidence in `docs/compliance/UPSTREAM_FETCH_EVIDENCE.json`. This is documentary evidence, not completion of bundled-module attribution, Python-native wheel licensing, service terms, or legal review. See [`docs/compliance/RECONCILIATION_REPORT.md`](./docs/compliance/RECONCILIATION_REPORT.md).
 
 ## Enterprise licensing boundary
 
