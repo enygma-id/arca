@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/branding/arca-logo-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/branding/arca-logo-light.png">
-    <img src="assets/branding/arca-logo-light.png" alt="ARCA" width="420">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/branding/arca-logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/branding/arca-logo-light.png">
+    <img src="docs/assets/branding/arca-logo-light.png" alt="ARCA" width="420">
   </picture>
 </p>
 
@@ -31,10 +31,10 @@ derived from the source model's embedded georeferencing, so they overlay
 precisely on any GIS map without manual alignment.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/overview/arca-overview-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="assets/overview/arca-overview-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/overview/arca-overview-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/overview/arca-overview-light.png">
   <img
-    src="assets/overview/arca-overview-light.png"
+    src="docs/assets/overview/arca-overview-light.png"
     alt="ARCA: GIS-native LoD 1.3 and hierarchical decomposition"
     width="100%">
 </picture>
