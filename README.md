@@ -1,4 +1,16 @@
-# ARCA
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/branding/arca-logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/branding/arca-logo-light.png">
+    <img src="assets/branding/arca-logo-light.png" alt="ARCA" width="420">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://arca.enygma.id/"><strong>Live Preview</strong></a> ·
+  <a href="https://github.com/enygma-id/arca#quick-start">Quick Start</a> ·
+  <a href="https://github.com/enygma-id/arca#sample-dataset">Sample Dataset</a>
+</p>
 
 **ARCA: Asset Representation Conversion Architecture**
 
@@ -6,8 +18,6 @@ ARCA is an open-source, GIS-native research and engineering initiative for
 transforming authoritative digital-asset representations into lighter,
 interoperable spatial representations without treating the original BIM model
 as disposable.
-
-**[Live Preview](https://arca.enygma.id/)** · [Quick Start](#quick-start) · [Sample Dataset](#sample-dataset)
 
 **Founded and stewarded by Enygma.**  
 Legal entity: **PT Enygma Solusi Negeri**
@@ -21,10 +31,10 @@ derived from the source model's embedded georeferencing, so they overlay
 precisely on any GIS map without manual alignment.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/arca-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/arca-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/overview/arca-overview-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/overview/arca-overview-light.png">
   <img
-    src="docs/assets/arca-light.png"
+    src="assets/overview/arca-overview-light.png"
     alt="ARCA: GIS-native LoD 1.3 and hierarchical decomposition"
     width="100%">
 </picture>

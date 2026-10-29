@@ -4,8 +4,8 @@ Current asset binaries are distributed in the ZIP, but original production/desig
 
 | Asset path | Audit action | Evidence status |
 |---|---|---|
-| `docs/assets/arca-dark.png` | Request source/export history and Enygma owner declaration; classify brand or software asset | `HUMAN_DOCUMENT_REQUEST` |
-| `docs/assets/arca-light.png` | Request source/export history and Enygma owner declaration; classify brand or software asset | `HUMAN_DOCUMENT_REQUEST` |
+| `assets/overview/arca-overview-dark.png` | Request source/export history and Enygma owner declaration; classify brand or software asset | `HUMAN_DOCUMENT_REQUEST` |
+| `assets/overview/arca-overview-light.png` | Request source/export history and Enygma owner declaration; classify brand or software asset | `HUMAN_DOCUMENT_REQUEST` |
 | `src/arca/server/static/assets/apple-touch-icon.png` | Request source/export history and Enygma owner declaration; classify brand or software asset | `HUMAN_DOCUMENT_REQUEST` |
 | `src/arca/server/static/assets/favicon-16x16.png` | Request source/export history and Enygma owner declaration; classify brand or software asset | `HUMAN_DOCUMENT_REQUEST` |
 | `src/arca/server/static/assets/favicon-32x32.png` | Request source/export history and Enygma owner declaration; classify brand or software asset | `HUMAN_DOCUMENT_REQUEST` |
