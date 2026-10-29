@@ -97,6 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btnDownloadGeoJSON = document.getElementById('btnDownloadGeoJSON');
   const btnDownloadGLB = document.getElementById('btnDownloadGLB');
+  const btnDownloadCityJSON = document.getElementById('btnDownloadCityJSON');
+  const btnDownloadCityGML = document.getElementById('btnDownloadCityGML');
   const btnOpenViewer = document.getElementById('btnOpenViewer');
   const btnDeleteResult = document.getElementById('btnDeleteResult');
   const logBox = document.getElementById('logBox');
@@ -153,6 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnDeleteResult) btnDeleteResult.style.display = 'none';
     if (btnDownloadGeoJSON) btnDownloadGeoJSON.style.display = 'none';
     if (btnDownloadGLB) btnDownloadGLB.style.display = 'none';
+    if (btnDownloadCityJSON) btnDownloadCityJSON.style.display = 'none';
+    if (btnDownloadCityGML) btnDownloadCityGML.style.display = 'none';
     if (logBox) logBox.textContent = '-';
     if (liveLogBox) liveLogBox.textContent = '';
   }
@@ -233,17 +237,37 @@ document.addEventListener('DOMContentLoaded', () => {
           inputSourceUnit.value = 'auto';
         }
 
-        inspectBody.innerHTML = `
-          <div class="inspect-grid">
-            <div class="inspect-grid-item"><span>CRS:</span><strong>${info.crs || 'Projected'}</strong></div>
-            <div class="inspect-grid-item"><span>Unit:</span><strong>${unit || 'Meters'}</strong></div>
-            <div class="inspect-grid-item"><span>WGS84:</span><strong>${originText}</strong></div>
-            <div class="inspect-grid-item"><span>Rotation:</span><strong>${rot ? rot + '°' : '0°'}</strong></div>
-          </div>
-          <div style="margin-top: 6px; font-size: 11px; color: #15803d;">
-            Site parameters auto-filled. You can proceed directly to <strong>Start Conversion</strong>.
-          </div>
-        `;
+        inspectBody.innerHTML = '';
+        const inspectGrid = document.createElement('div');
+        inspectGrid.className = 'inspect-grid';
+
+        const gridItems = [
+          ['CRS:', info.crs || 'Projected'],
+          ['Unit:', unit || 'Meters'],
+          ['WGS84:', originText],
+          ['Rotation:', rot ? rot + '°' : '0°'],
+        ];
+
+        gridItems.forEach(([label, value]) => {
+          const itemEl = document.createElement('div');
+          itemEl.className = 'inspect-grid-item';
+          const spanEl = document.createElement('span');
+          spanEl.textContent = label;
+          const strongEl = document.createElement('strong');
+          strongEl.textContent = String(value);
+          itemEl.appendChild(spanEl);
+          itemEl.appendChild(strongEl);
+          inspectGrid.appendChild(itemEl);
+        });
+
+        const noticeEl = document.createElement('div');
+        noticeEl.style.marginTop = '6px';
+        noticeEl.style.fontSize = '11px';
+        noticeEl.style.color = '#15803d';
+        noticeEl.innerHTML = 'Site parameters auto-filled. You can proceed directly to <strong>Start Conversion</strong>.';
+
+        inspectBody.appendChild(inspectGrid);
+        inspectBody.appendChild(noticeEl);
 
         if (georefAccordion) georefAccordion.open = false;
       } else {
@@ -621,6 +645,22 @@ document.addEventListener('DOMContentLoaded', () => {
               btnDownloadGLB.style.display = 'none';
             }
 
+            if (data.files && data.files.cityjson && btnDownloadCityJSON) {
+              btnDownloadCityJSON.href = data.files.cityjson.url;
+              btnDownloadCityJSON.download = data.files.cityjson.name || 'building.city.json';
+              btnDownloadCityJSON.style.display = 'inline-flex';
+            } else if (btnDownloadCityJSON) {
+              btnDownloadCityJSON.style.display = 'none';
+            }
+
+            if (data.files && data.files.citygml && btnDownloadCityGML) {
+              btnDownloadCityGML.href = data.files.citygml.url;
+              btnDownloadCityGML.download = data.files.citygml.name || 'building.gml';
+              btnDownloadCityGML.style.display = 'inline-flex';
+            } else if (btnDownloadCityGML) {
+              btnDownloadCityGML.style.display = 'none';
+            }
+
             loadHistory();
 
             if (window.ARCA_VIEWER?.reloadDataset) {
@@ -718,33 +758,139 @@ document.addEventListener('DOMContentLoaded', () => {
       const json = await resp.json();
       const list = json.datasets || [];
 
+      historyBody.innerHTML = '';
+
       if (list.length === 0) {
-        historyBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">No converted models yet</td></tr>';
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.style.textAlign = 'center';
+        td.style.color = 'var(--text-muted)';
+        td.style.padding = '20px';
+        td.textContent = 'No converted models yet';
+        tr.appendChild(td);
+        historyBody.appendChild(tr);
         return;
       }
 
-      historyBody.innerHTML = list.map(item => {
+      list.forEach(item => {
         const bName = item.name || item.dataset;
-        const safeName = encodeURIComponent(bName);
-        return `
-        <tr>
-          <td>
-            <a href="javascript:void(0)" class="history-item-link" data-dataset="${item.dataset}" style="font-weight:600; color:var(--text-primary); text-decoration:none;">
-              ${item.name ? `${item.name} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(${item.dataset})</span>` : item.dataset}
-            </a>
-            ${item.height_m ? `<div style="font-size:11px; color:var(--text-muted);">${item.height_m.toFixed(1)}m | ${item.footprint_m2 ? item.footprint_m2.toFixed(0)+'m²' : ''}</div>` : ''}
-          </td>
-          <td><span class="tag">${item.source_format || 'BIM'}</span></td>
-          <td>${item.storeys || '-'}</td>
-          <td style="font-size: 11px; color: var(--text-muted);">${item.timestamp || '-'}</td>
-          <td style="text-align: right; white-space: nowrap;">
-            ${item.has_geojson ? `<a href="/api/download?dataset=${item.dataset}&file=building.geojson&name=${safeName}" download="${bName}.geojson" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GeoJSON">GeoJSON</a>` : ''}
-            ${item.has_glb ? `<a href="/api/download?dataset=${item.dataset}&file=model_glb.zip&name=${safeName}" download="${bName}_glb.zip" class="btn-link" style="padding:2px 6px; font-size:11px;" title="Download GLB">GLB</a>` : ''}
-            <button type="button" class="btn-link btn-view-model" data-dataset="${item.dataset}" style="padding:2px 6px; font-size:11px; color:var(--accent-blue);" title="View in 3D Viewer">View</button>
-            <button type="button" class="btn-link btn-delete-model" data-dataset="${item.dataset}" style="padding:2px 6px; font-size:11px; color:#dc2626;" title="Delete model">Delete</button>
-          </td>
-        </tr>
-      `;}).join('');
+        const tr = document.createElement('tr');
+
+        // 1. Model Link & Metrics
+        const td1 = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = 'javascript:void(0)';
+        link.className = 'history-item-link';
+        link.dataset.dataset = item.dataset;
+        link.style.fontWeight = '600';
+        link.style.color = 'var(--text-primary)';
+        link.style.textDecoration = 'none';
+
+        if (item.name) {
+          link.textContent = item.name + ' ';
+          const span = document.createElement('span');
+          span.style.fontSize = '11px';
+          span.style.fontWeight = 'normal';
+          span.style.color = 'var(--text-muted)';
+          span.textContent = `(${item.dataset})`;
+          link.appendChild(span);
+        } else {
+          link.textContent = item.dataset;
+        }
+        td1.appendChild(link);
+
+        if (item.height_m) {
+          const metaDiv = document.createElement('div');
+          metaDiv.style.fontSize = '11px';
+          metaDiv.style.color = 'var(--text-muted)';
+          metaDiv.textContent = `${item.height_m.toFixed(1)}m${item.footprint_m2 ? ' | ' + item.footprint_m2.toFixed(0) + 'm²' : ''}`;
+          td1.appendChild(metaDiv);
+        }
+        tr.appendChild(td1);
+
+        // 2. Format
+        const td2 = document.createElement('td');
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = item.source_format || 'BIM';
+        td2.appendChild(tag);
+        tr.appendChild(td2);
+
+        // 3. Storeys
+        const td3 = document.createElement('td');
+        td3.textContent = String(item.storeys || '-');
+        tr.appendChild(td3);
+
+        // 4. Timestamp
+        const td4 = document.createElement('td');
+        td4.style.fontSize = '11px';
+        td4.style.color = 'var(--text-muted)';
+        td4.textContent = item.timestamp || '-';
+        tr.appendChild(td4);
+
+        // 5. Actions & Downloads
+        const td5 = document.createElement('td');
+        td5.style.textAlign = 'right';
+        td5.style.whiteSpace = 'nowrap';
+
+        function addDownloadLink(filename, downloadFilename, label, title) {
+          const params = new URLSearchParams({
+            dataset: item.dataset,
+            file: filename,
+            name: bName
+          });
+          const a = document.createElement('a');
+          a.href = `/api/download?${params.toString()}`;
+          a.download = downloadFilename;
+          a.className = 'btn-link';
+          a.style.padding = '2px 6px';
+          a.style.fontSize = '11px';
+          a.title = title;
+          a.textContent = label;
+          td5.appendChild(a);
+          td5.appendChild(document.createTextNode(' '));
+        }
+
+        if (item.has_geojson) {
+          addDownloadLink('building.geojson', `${bName}.geojson`, 'GeoJSON', 'Download GeoJSON');
+        }
+        if (item.has_glb) {
+          addDownloadLink('model_glb.zip', `${bName}_glb.zip`, 'GLB', 'Download GLB');
+        }
+        if (item.has_cityjson) {
+          addDownloadLink('building.city.json', `${bName}.city.json`, 'CityJSON', 'Download CityJSON');
+        }
+        if (item.has_citygml) {
+          addDownloadLink('building.gml', `${bName}.gml`, 'CityGML', 'Download CityGML');
+        }
+
+        const btnView = document.createElement('button');
+        btnView.type = 'button';
+        btnView.className = 'btn-link btn-view-model';
+        btnView.dataset.dataset = item.dataset;
+        btnView.style.padding = '2px 6px';
+        btnView.style.fontSize = '11px';
+        btnView.style.color = 'var(--accent-blue)';
+        btnView.title = 'View in 3D Viewer';
+        btnView.textContent = 'View';
+        td5.appendChild(btnView);
+        td5.appendChild(document.createTextNode(' '));
+
+        const btnDelete = document.createElement('button');
+        btnDelete.type = 'button';
+        btnDelete.className = 'btn-link btn-delete-model';
+        btnDelete.dataset.dataset = item.dataset;
+        btnDelete.style.padding = '2px 6px';
+        btnDelete.style.fontSize = '11px';
+        btnDelete.style.color = '#dc2626';
+        btnDelete.title = 'Delete model';
+        btnDelete.textContent = 'Delete';
+        td5.appendChild(btnDelete);
+
+        tr.appendChild(td5);
+        historyBody.appendChild(tr);
+      });
 
       // Attach click events for items
       document.querySelectorAll('.btn-view-model, .history-item-link').forEach(btn => {

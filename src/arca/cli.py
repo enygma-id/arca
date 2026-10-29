@@ -42,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("run", aliases=["convert"], help="Convert IFC/SKP via CLI")
     r.add_argument("input", type=Path, help=".ifc or .skp file or folder")
     r.add_argument("--out", type=Path, default=Path("./output"), help="Output directory")
-    r.add_argument("--generate", choices=("all", "lod1.3", "glb"), default="all")
+    r.add_argument("--generate", choices=("all", "lod1.3", "glb", "cityjson", "citygml"), default="all")
     r.add_argument("--anchor-lon", type=float, default=None)
     r.add_argument("--anchor-lat", type=float, default=None)
     r.add_argument("--crs", default=None)

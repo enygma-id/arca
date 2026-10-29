@@ -104,7 +104,7 @@
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Model Ingestion (IFC / SKP)</h2>
-          <span class="tag">v0.2.0</span>
+          <span class="tag">v0.3.0</span>
         </div>
         <div class="card-body">
           <form id="convertForm">
@@ -183,7 +183,9 @@
             <div class="form-group">
               <label class="form-label" for="generateMode">Target Output</label>
               <select id="generateMode" class="form-select">
-                <option value="all" selected>All (Pure GeoJSON LOD 1.3 + 3D Render GLB + Viewer)</option>
+                <option value="all" selected>All (GeoJSON + GLB + CityJSON + CityGML + Viewer)</option>
+                <option value="cityjson">CityJSON only (building.city.json)</option>
+                <option value="citygml">CityGML only (building.gml)</option>
                 <option value="lod1.3">Pure GeoJSON LOD 1.3 only (single building.geojson)</option>
                 <option value="glb">3D Render GLB only (model.glb)</option>
               </select>
@@ -339,6 +341,18 @@
                   </svg>
                   3D Model (GLB)
                 </a>
+                <a id="btnDownloadCityJSON" href="#" class="btn-action" style="display:none;" download>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  </svg>
+                  CityJSON
+                </a>
+                <a id="btnDownloadCityGML" href="#" class="btn-action" style="display:none;" download>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  </svg>
+                  CityGML
+                </a>
                 <button id="btnOpenViewer" type="button" class="btn-action highlight">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="5 3 19 12 5 21 5 3"/>
@@ -401,7 +415,7 @@
       </div>
 
       <div style="grid-column: 1 / -1; margin-top: 8px; font-size: 11px; color: var(--text-secondary); text-align: center;">
-        ARCA v0.2.0 · AGPL-3.0-only · <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" style="color: var(--accent); text-decoration: none;">GitHub Source Code</a>
+        ARCA v0.3.0 · AGPL-3.0-only · <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" style="color: var(--accent); text-decoration: none;">GitHub Source Code</a>
       </div>
 
     </div>
@@ -504,7 +518,7 @@
         <b id="engineLabel">MapLibre GL JS</b>
         <span id="status">Loading viewer data...</span>
         <div style="margin-top: 6px; font-size: 10px; opacity: 0.75;">
-          ARCA v0.2.0 · AGPL-3.0-only · <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">Source Code</a>
+          ARCA v0.3.0 · AGPL-3.0-only · <a href="https://github.com/enygma-id/arca" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">Source Code</a>
         </div>
       </div>
 

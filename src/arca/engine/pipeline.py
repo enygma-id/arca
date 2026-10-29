@@ -12,6 +12,8 @@ from typing import Optional
 
 import numpy as np
 
+from arca.engine.citygml import CityGMLWriter
+from arca.engine.cityjson import CityJSONWriter
 from arca.engine.geom import (
     area3,
     infer_product_semantic,
@@ -96,10 +98,12 @@ def preprocess(
     metadata_info: Optional[dict] = None,
     progress_cb=None,
 ):
-    if generate_mode not in {"all", "lod1.3", "glb"}:
-        raise ValueError("generate_mode must be one of: all, lod1.3, glb")
+    if generate_mode not in {"all", "lod1.3", "glb", "cityjson", "citygml"}:
+        raise ValueError("generate_mode must be one of: all, lod1.3, glb, cityjson, citygml")
     generate_lod13 = generate_mode in {"all", "lod1.3"}
     generate_glb = generate_mode in {"all", "glb"}
+    generate_cityjson = generate_mode in {"all", "cityjson"}
+    generate_citygml = generate_mode in {"all", "citygml"}
 
     dataset = ifc_path.stem
     source_bytes = ifc_path.stat().st_size
@@ -169,6 +173,24 @@ def preprocess(
     _log(progress_cb, f"      Candidate products: {len(product_ids):,}")
 
     glb_writer = GLBWriter(out_dir, dataset) if generate_glb else None
+    cityjson_writer = (
+        CityJSONWriter(
+            out_dir,
+            dataset,
+            building_name=metadata_info.get("name") if metadata_info else dataset,
+        )
+        if generate_cityjson
+        else None
+    )
+    citygml_writer = (
+        CityGMLWriter(
+            out_dir,
+            dataset,
+            building_name=metadata_info.get("name") if metadata_info else dataset,
+        )
+        if generate_citygml
+        else None
+    )
 
     placement_memo = {}
     stats = {}
@@ -220,6 +242,18 @@ def preprocess(
                 triangle_count += 1
                 if glb_writer is not None:
                     glb_writer.add_triangle(
+                        semantic=semantic,
+                        tri_m=tri,
+                        object_id=object_id,
+                    )
+                if cityjson_writer is not None:
+                    cityjson_writer.add_triangle(
+                        semantic=semantic,
+                        tri_m=tri,
+                        object_id=object_id,
+                    )
+                if citygml_writer is not None:
+                    citygml_writer.add_triangle(
                         semantic=semantic,
                         tri_m=tri,
                         object_id=object_id,
@@ -332,6 +366,29 @@ def preprocess(
     total_floor_m2 = lod13.get("total_floor_area_m2", 0.0) if lod13 else footprint_m2
     max_height_m = round(float(maxz - minz), 2)
 
+    cityjson = (
+        cityjson_writer.finalize(
+            anchor_lon=resolved_lon,
+            anchor_lat=resolved_lat,
+            georef=georef,
+            storey_count=storey_count,
+            legacy_manifests=legacy_manifests,
+        )
+        if cityjson_writer is not None
+        else None
+    )
+    citygml = (
+        citygml_writer.finalize(
+            anchor_lon=resolved_lon,
+            anchor_lat=resolved_lat,
+            georef=georef,
+            storey_count=storey_count,
+            legacy_manifests=legacy_manifests,
+        )
+        if citygml_writer is not None
+        else None
+    )
+
     metadata = {
         "dataset": dataset,
         "name": (metadata_info.get("name") if metadata_info else None) or dataset,
@@ -350,13 +407,15 @@ def preprocess(
         "generate_mode": generate_mode,
         "envelope_enabled": generate_envelope,
         "gis_native": True,
-        "preprocess_version": "0.2.0-georeferenced",
+        "preprocess_version": "0.3.0-georeferenced",
         "geometry": {
             "lod1_3": "lod1_3/manifest.json" if lod13 else None,
             "envelope": "envelope/manifest.json" if envelope else None,
             "building_overview": "building.geojson" if generate_envelope else None,
             "render_glb": "render/model.glb" if glb_manifest else None,
             "model_anchor": "render/model.geojson" if glb_manifest else None,
+            "cityjson": cityjson["file"] if cityjson else None,
+            "citygml": citygml["file"] if citygml else None,
         },
         "anchor": {
             "lon": resolved_lon,
@@ -386,6 +445,8 @@ def preprocess(
             "lod1_3_bytes": lod13["bytes"] if lod13 else 0,
             "envelope_bytes": envelope["bytes"] if envelope else 0,
             "glb_bytes": glb_bytes,
+            "cityjson_bytes": cityjson["bytes"] if cityjson else 0,
+            "citygml_bytes": citygml["bytes"] if citygml else 0,
         },
         "notes": [
             "LOD 1.3 and GLB can be generated together or independently.",
@@ -430,6 +491,10 @@ def preprocess(
     _log(progress_cb, f"  Dataset        : {dataset}")
     _log(progress_cb, f"  Generate mode  : {generate_mode}")
     _log(progress_cb, f"  LOD1.3         : {lod13['feature_count'] if lod13 else 0:,} features")
+    if cityjson:
+        _log(progress_cb, f"  CityJSON       : {cityjson['triangles_count']:,} triangles across {cityjson['surfaces_count']} semantic surfaces")
+    if citygml:
+        _log(progress_cb, f"  CityGML        : {citygml['triangles_count']:,} triangles in {citygml['surfaces_count']} semantic boundary surfaces")
     _log(progress_cb, f"  Envelope       : {'enabled' if envelope else 'disabled'}")
     _log(progress_cb, f"  Triangles      : {triangle_count:,}")
     _log(progress_cb, f"  GLB            : {glb_bytes / (1024 * 1024):.2f} MB" if glb_manifest else "  GLB            : disabled")
@@ -661,9 +726,9 @@ def build_parser():
 
     p.add_argument(
         "--generate",
-        choices=("all", "lod1.3", "glb"),
+        choices=("all", "lod1.3", "glb", "cityjson", "citygml"),
         default="lod1.3",
-        help="Output selection: lod1.3 (Pure GeoJSON), glb, or all (default: lod1.3)",
+        help="Output selection: lod1.3 (Pure GeoJSON), glb, cityjson, citygml, or all (default: lod1.3)",
     )
     p.add_argument(
         "--pure-geojson",

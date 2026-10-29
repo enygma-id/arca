@@ -10,17 +10,11 @@ representations from SKP-derived IFC and direct IFC inputs.
 It does not guarantee equivalent behavior for every BIM authoring ecosystem or
 every IFC representation item.
 
-## Not an IFC-to-CityGML / CityJSON Replacement
+## CityGML & CityJSON LOD Scope
 
-ARCA does not position itself as a substitute for existing IFC-to-CityGML or
-IFC-to-CityJSON research.
+ARCA provides direct OGC CityJSON (v1.1) and CityGML (v2.0) LOD 2.0 representations with semantic boundary surfaces.
 
-Those projects address standardized 3D-city-model transformation.
-
-ARCA focuses on fit-for-purpose GIS-native representations and public/spatial
-consumption.
-
-The approaches may be complementary.
+However, ARCA does not claim full LOD3 or LOD4 reconstruction (interior spaces, detailed window frames, or architectural fixtures are generalized into external LOD 2.0 boundary surfaces). Complex non-manifold geometries from arbitrary BIM authoring tools may be simplified to preserve GIS validity.
 
 ## Enhanced LOD1.3 Is Not LOD2.2
 

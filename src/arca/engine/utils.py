@@ -49,6 +49,8 @@ def clean_previous_outputs(root: Path) -> list[str]:
         "objects.json",
         "objects.geojson",
         "building.geojson",
+        "building.city.json",
+        "building.gml",
     ):
         p = root / name
         if p.exists() and p.is_file():
