@@ -44,10 +44,10 @@ SOURCES = [
     },
     {
         'id':'CESIUM-1.145-THIRDPARTY', 'component':'CesiumJS third-party bundle inventory', 'version':'1.145',
-        'url':'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/ThirdParty.json',
-        'path':'third-party/cesium/ThirdParty.json', 'min_bytes':15,
+        'url':'https://raw.githubusercontent.com/CesiumGS/cesium/1.145/ThirdParty.json',
+        'path':'third-party/cesium/ThirdParty.json', 'min_bytes':200,
         'must_contain':[], 'required':False,
-        'purpose':'Optional release-bundle-generated ThirdParty.json, only when endpoint exists',
+        'purpose':'Version-tagged CesiumJS root ThirdParty.json; optional evidence inventory, distinct from LICENSE.md',
     },
 ]
 
