@@ -1,21 +1,27 @@
 cff-version: 1.2.0
-message: "If you use ARCA in research, please cite the project and the exact release or commit used."
-title: "ARCA: Asset Representation Conversion Architecture"
+message: "If you use ARCA in research, publications, or software development, please cite this software."
 type: software
+title: "ARCA: Asset Representation Conversion Architecture"
+
 authors:
-  - family-names: Karya
-    given-names: Erick
-    alias: erickkarya
-  - family-names: Hanafi
-    alias: hanafi2274
-version: 0.1.0
-date-released: 2026-09-13
-license: AGPL-3.0-only
-repository-code: "https://github.com/enygma-id"
+  - family-names: "Karya"
+    given-names: "Erick"
+    orcid: "https://orcid.org/0009-0003-0386-8948"
+
+  - family-names: "Hanafi"
+    given-names: "Muhammad"
+    orcid: "https://orcid.org/0009-0009-0175-6954"
+
+repository-code: "https://github.com/enygma-id/arca"
+
 keywords:
-  - GIS
-  - BIM
-  - IFC
-  - GeoJSON
-  - generalization
-  - digital twin
+  - "bim-to-gis"
+  - "building-models"
+  - "geojson"
+  - "gis-native"
+  - "ifc"
+  - "interoperability"
+  - "level-of-detail"
+  - "spatial-data"
+
+license: "AGPL-3.0-only"
