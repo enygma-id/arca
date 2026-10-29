@@ -2,10 +2,14 @@
 
 All notable project changes should be documented here.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-29
 
 ### Added
 
+- OGC CityJSON v1.1 LOD 2.0 export writer (`building.city.json`) with integer millimeter quantization, spatial-hash vertex deduplication, and semantic boundary surfaces.
+- OGC CityGML 2.0 XML LOD 2.0 export writer (`building.gml`) with linear ring loop closure, semantic boundary surfaces (`RoofSurface`, `WallSurface`, `GroundSurface`, `OuterFloorSurface`), and streaming disk serialization.
+- CLI `--generate` options for `cityjson` and `citygml`, alongside Web Studio download bindings and mode selections.
+- Technical specification and integration guide for CityGML and CityJSON (`docs/citygml-cityjson.md`).
 - 3D planar triangulation using Newell normal and Shapely constrained Delaunay triangulation to avoid vertex stretching/distortion on concave and multi-vertex faces in GLB export.
 - Granular progress reporting with dynamic sub-step percentages (`pct`), live elapsed timer (`mm:ss`), and animated shimmer progress bar in Web Studio to eliminate perceived freeze during heavy SketchUp/IFC geometry processing.
 - Companion Metadata JSON auto-discovery and priority resolution (`CLI > Metadata JSON > Internal Model > Fallback`) for IFC and SKP, with CLI flag `--metadata` and Web Studio UI toggle.

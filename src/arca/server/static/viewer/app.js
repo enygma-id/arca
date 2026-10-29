@@ -5,6 +5,16 @@ import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 const deck = window.deck;
 const Cesium = window.Cesium;
 
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const viewerNode = document.getElementById("viewer");
 const statusNode = document.getElementById("status");
 const engineLabel = document.getElementById("engineLabel");
@@ -841,12 +851,12 @@ function renderBuildingsList(filter = '') {
     const isSelected = state.selected && (String(state.selected.item?.id) === String(item.id));
 
     return `
-      <div class="building-card ${isSelected ? 'active' : ''}" data-id="${item.id}" role="button" tabindex="0">
+      <div class="building-card ${isSelected ? 'active' : ''}" data-id="${escapeHtml(item.id)}" role="button" tabindex="0">
         <div class="building-card-top">
-          <span class="building-name">${item.name || item.id}</span>
+          <span class="building-name">${escapeHtml(item.name || item.id)}</span>
           <span class="building-type-tag">BIM</span>
         </div>
-        ${metaStr ? `<div class="building-meta">${metaStr}</div>` : ''}
+        ${metaStr ? `<div class="building-meta">${escapeHtml(metaStr)}</div>` : ''}
         <div class="building-card-bottom">
           <span class="building-geo">${Number(item.longitude || 0).toFixed(4)}, ${Number(item.latitude || 0).toFixed(4)}</span>
           <span class="building-target-btn">Target →</span>
@@ -940,7 +950,7 @@ function selectedItemHtml(asset) {
     ['Latitude', asset.item.latitude],
     ['Longitude', asset.item.longitude]
   ].filter(([,v]) => v !== null && v !== undefined && v !== '');
-  return rows.map(([k,v]) => `<div><b>${k}:</b> ${v}</div>`).join('');
+  return rows.map(([k,v]) => `<div><b>${escapeHtml(k)}:</b> ${escapeHtml(v)}</div>`).join('');
 }
 
 function closeAssetCard(event) {
@@ -997,19 +1007,19 @@ function showAssetCard(asset) {
 
   assetCard.innerHTML = `
     <div class="card-head">
-      <div class="card-title">${asset.item.name}</div>
+      <div class="card-title">${escapeHtml(asset.item.name)}</div>
       <button class="card-close" type="button" aria-label="Close">×</button>
     </div>
     <div class="card-body">
       <div class="asset-grid">
         ${rows.map(([k,v]) =>
-          `<div class="asset-key">${k}</div><div class="asset-value">${v}</div>`
+          `<div class="asset-key">${escapeHtml(k)}</div><div class="asset-value">${escapeHtml(v)}</div>`
         ).join('')}
       </div>
       <div class="card-metrics">
         <strong>Geometry metrics</strong>
         <div class="asset-grid">
-          <div class="asset-key">Representation</div><div class="asset-value">${sourceText}</div>
+          <div class="asset-key">Representation</div><div class="asset-value">${escapeHtml(sourceText)}</div>
           <div class="asset-key">${isGlb ? 'Triangles' : 'Features'}</div><div class="asset-value">${isGlb ? (asset.glbTriangles ? asset.glbTriangles.toLocaleString() : '–') : asset.features.toLocaleString()}</div>
           <div class="asset-key">Vertices</div><div class="asset-value">${isGlb ? (asset.glbVertices ? asset.glbVertices.toLocaleString() : '–') : asset.vertices.toLocaleString()}</div>
           <div class="asset-key">File size</div><div class="asset-value" id="cardMetricFileSize">${displayBytes ? formatBytes(displayBytes) : 'Loading...'}</div>

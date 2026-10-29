@@ -1,0 +1,214 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:68f8a156-4277-4b10-8b1e-7fca92f1b742",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-29T12:00:00Z",
+    "tools": [
+      {
+        "vendor": "ARCA Project",
+        "name": "arca-sbom-generator",
+        "version": "0.3.0"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "name": "arca",
+      "version": "0.3.0",
+      "description": "ARCA Spatial Studio \u2014 Complete BIM-to-GIS 3D City Modeling Converter and Viewer",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-only"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/arca@0.3.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "openskp",
+      "version": "1.2.0",
+      "description": "Open SketchUp parser and IFC exporter adapter",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/openskp@1.2.0"
+    },
+    {
+      "type": "library",
+      "name": "numpy",
+      "version": "2.5.3",
+      "description": "Fundamental package for array computing and geometry operations in Python",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/numpy@2.5.3"
+    },
+    {
+      "type": "library",
+      "name": "shapely",
+      "version": "2.1.2",
+      "description": "Manipulation and analysis of geometric objects in the Cartesian plane",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/shapely@2.1.2"
+    },
+    {
+      "type": "library",
+      "name": "pyproj",
+      "version": "3.8.0",
+      "description": "Python interface to PROJ cartographic projections and coordinate transformations",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/pyproj@3.8.0"
+    },
+    {
+      "type": "library",
+      "name": "trimesh",
+      "version": "5.1.0",
+      "description": "Python library for loading and using triangular meshes",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/trimesh@5.1.0"
+    },
+    {
+      "type": "library",
+      "name": "defusedxml",
+      "version": "0.7.1",
+      "description": "XML bomb protection for Python standard library",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Python-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:pypi/defusedxml@0.7.1"
+    },
+    {
+      "type": "library",
+      "name": "GEOS",
+      "version": "3.13.0",
+      "description": "Geometry Engine - Open Source (native C++ geometry engine used by Shapely)",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "LGPL-2.1-only"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "deck.gl",
+      "version": "9.3.7",
+      "description": "Large-scale WebGL data-visualization framework for web",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d7eb98f1488630acd130e967054bf84b5cdb2f36a0db0e75d7e01b1a844f36f4"
+        }
+      ],
+      "purl": "pkg:npm/deck.gl@9.3.7"
+    },
+    {
+      "type": "library",
+      "name": "maplibre-gl",
+      "version": "6.9.0",
+      "description": "Open source TypeScript library for publishing maps on your websites",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0197eee4c6e8fd5d8b68f5f94a23e1c77e0c8fd054c377a280bcd08117aadfc4"
+        }
+      ],
+      "purl": "pkg:npm/maplibre-gl@6.9.0"
+    },
+    {
+      "type": "library",
+      "name": "three",
+      "version": "0.185.0",
+      "description": "JavaScript 3D library for WebGL",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bbf5ed13fe4373f5bd38b14ea8e62e9f157327da5638edc6d3863e08b167c9c7"
+        }
+      ],
+      "purl": "pkg:npm/three@0.185.0"
+    },
+    {
+      "type": "library",
+      "name": "cesium",
+      "version": "1.145",
+      "description": "An open platform for 3D geospatial visualization",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:npm/cesium@1.145"
+    }
+  ]
+}

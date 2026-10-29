@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """ARCA BIM2GIS Engine - Geodesic & topological transformation pipeline."""
 
+from arca.engine.citygml import CityGMLWriter
+from arca.engine.cityjson import CityJSONWriter
 from arca.engine.georef import (
     GeoreferenceContext,
     compound_angle_to_degrees,
@@ -61,6 +63,8 @@ __all__ = [
     "ring_geo",
     "unit_factor_to_m",
     "utm_to_latlon_wgs84",
+    "CityGMLWriter",
+    "CityJSONWriter",
     "GLBWriter",
     "PlanarUnionAccumulator",
     "write_envelope",
