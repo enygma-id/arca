@@ -25,8 +25,8 @@ Legal entity: **PT Enygma Solusi Negeri**
 ## Overview
 
 ARCA converts IFC and SKP building models into GIS-native representations:
-a **LOD 1.3 GeoJSON** and a **georeferenced GLB**
-(full architectural mesh, glTF 2.0). Both outputs share a common WGS84 anchor
+a **LOD 1.3 GeoJSON**, a **georeferenced GLB** (full architectural mesh, glTF 2.0),
+**CityJSON v1.1 (LOD 2.0)**, and **CityGML v2.0**. All outputs share a common WGS84 anchor
 derived from the source model's embedded georeferencing, so they overlay
 precisely on any GIS map without manual alignment.
 
@@ -147,6 +147,11 @@ uv run arca serve
 # Convert a BIM model (IFC or SKP) directly via CLI
 uv run arca run input_model.ifc --out outputs/
 
+# Export specific formats (GeoJSON LOD 1.3, GLB, CityJSON, CityGML, or all)
+uv run arca run input_model.ifc --generate all --out outputs/
+uv run arca run input_model.ifc --generate cityjson --out outputs/
+uv run arca run input_model.ifc --generate citygml --out outputs/
+
 # Inspect embedded georeferencing without full conversion
 uv run arca inspect input_model.ifc
 ```
@@ -166,25 +171,29 @@ The sample data are licensed separately from the ARCA software under **Creative 
 
 ## Current Representation Direction
 
-The founding prototype explores three practical representation layers:
+The founding prototype explores four practical representation layers:
 
 1. **Canonical full-detail GIS-native derivative**  
    IFC product geometry remains queryable as GIS features. This is not a
    formal CityGML LoD3 conformance claim.
 
-2. **Enhanced LOD1.3**  
+2. **OGC LOD 2.0 (CityJSON v1.1 & CityGML v2.0)**  
+   Standardized 3D city model representations featuring semantic boundary surfaces
+   (`RoofSurface`, `WallSurface`, `GroundSurface`, `OuterFloorSurface`) and integer millimeter coordinate quantization.
+
+3. **Enhanced LOD1.3**  
    A richer generalized representation that preserves more dominant
    height/mass variation than conventional LOD1.3 while deliberately avoiding
    a formal LOD2.2 claim until roof morphology and conformance are validated.
 
-3. **LOD1.3**  
+4. **LOD1.3**  
    A compact building-mass representation intended for efficient city-scale
    spatial use.
 
 ARCA deliberately uses conservative terminology. A more detailed output is not
 called LOD2.2 merely because it contains more polygons or height plateaus.
 
-See [`docs/representation-profiles.md`](./docs/representation-profiles.md).
+See [`docs/representation-profiles.md`](./docs/representation-profiles.md) and [`docs/citygml-cityjson.md`](./docs/citygml-cityjson.md).
 
 ## GIS-Native by Design
 
@@ -216,17 +225,12 @@ See [`docs/gis-native-principles.md`](./docs/gis-native-principles.md).
 
 Spatial placement is treated as data, not as a viewer-only adjustment.
 
-The founding prototype currently supports a user-supplied WGS84 anchor for
-local BIM geometry. It does **not yet automatically resolve the complete IFC
-georeferencing stack** such as `IfcMapConversion`, `IfcProjectedCRS`, or
-`IfcSite` geographic reference fields.
+ARCA automatically resolves authoritative georeferencing across multiple layers:
+- **IFC entities**: `IfcMapConversion` (Eastings, Northings, OrthogonalHeight, Rotation, Scale), `IfcProjectedCRS` (EPSG projection), and `IfcSite` coordinates;
+- **Companion Metadata JSON**: auto-discovered or explicitly supplied georeferencing metadata for IFC and SKP models;
+- **Manual WGS84 Anchor**: fallback user-specified anchor coordinates and rotation.
 
-That distinction is important:
-
-- a local SKP-derived model may require explicit positioning;
-- an IFC containing authoritative georeferencing should eventually preserve and
-  propagate that information automatically;
-- ARCA must not silently invent geographic truth.
+Coordinates are projected with sub-millimeter precision directly into WGS84 and local UTM grids.
 
 See [`docs/spatial-reference.md`](./docs/spatial-reference.md).
 
@@ -251,8 +255,7 @@ ARCA is also not currently:
 - a Common Data Environment;
 - a BIM Server;
 - a real-time BIM synchronization service;
-- a formal CityGML implementation;
-- a formal CityJSON implementation;
+- an indoor LOD3/LOD4 reconstruction engine (ARCA targets exterior LOD 2.0 boundary surfaces and generalized massing);
 - a guarantee that every source model can be generalized without loss.
 
 See [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md).
