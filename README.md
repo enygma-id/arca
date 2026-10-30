@@ -24,11 +24,11 @@ Legal entity: **PT Enygma Solusi Negeri**
 
 ## Overview
 
-ARCA converts IFC and SKP building models into GIS-native representations:
-a **LOD 1.3 GeoJSON**, a **georeferenced GLB** (full architectural mesh, glTF 2.0),
-**CityJSON v1.1 (LOD 2.0)**, and **CityGML v2.0**. All outputs share a common WGS84 anchor
-derived from the source model's embedded georeferencing, so they overlay
-precisely on any GIS map without manual alignment.
+ARCA converts IFC and SKP building models into lightweight, **GIS-native representations**:
+a **LOD 1.3 GeoJSON** and a **georeferenced GLB** (full architectural mesh, glTF 2.0),
+with direct export support for **CityJSON v1.1** and **CityGML v2.0 (LOD 2.0)**.
+All outputs share a common WGS84 anchor derived from the source model's embedded georeferencing,
+so they overlay precisely on any GIS map or 3D city pipeline without manual alignment.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/overview/arca-overview-dark.png">
@@ -94,8 +94,9 @@ spatial placement
         ▼
 GIS-native representations
         │
-        ├── LOD 1.3 GeoJSON & georeferenced GLB
-        ├── OGC CityJSON (v1.1) & CityGML (v2.0)
+        ├── LOD 1.3 GeoJSON
+        ├── georeferenced GLB
+        ├── CityJSON & CityGML exports
         ├── future GeoPackage/PostGIS workflows
         └── future tile/publication derivatives
         │
@@ -172,24 +173,24 @@ The sample data are licensed separately from the ARCA software under **Creative 
 
 ## Current Representation Direction
 
-The founding prototype explores four practical representation layers:
+The founding prototype explores practical GIS-native massing layers alongside standardized OGC export profiles:
 
 1. **Canonical full-detail GIS-native derivative**  
    IFC product geometry remains queryable as GIS features. This is not a
    formal CityGML LoD3 conformance claim.
 
-2. **OGC LOD 2.0 (CityJSON v1.1 & CityGML v2.0)**  
-   Standardized 3D city model representations featuring semantic boundary surfaces
-   (`RoofSurface`, `WallSurface`, `GroundSurface`, `OuterFloorSurface`) and integer millimeter coordinate quantization.
-
-3. **Enhanced LOD1.3**  
+2. **Enhanced LOD1.3**  
    A richer generalized representation that preserves more dominant
    height/mass variation than conventional LOD1.3 while deliberately avoiding
    a formal LOD2.2 claim until roof morphology and conformance are validated.
 
-4. **LOD1.3**  
+3. **LOD1.3**  
    A compact building-mass representation intended for efficient city-scale
    spatial use.
+
+4. **OGC LOD 2.0 Export (CityJSON v1.1 & CityGML v2.0)**  
+   Standardized 3D city model exports featuring semantic boundary surfaces
+   (`RoofSurface`, `WallSurface`, `GroundSurface`, `OuterFloorSurface`) and integer millimeter coordinate quantization for municipal GIS and 3D cadastre workflows.
 
 ARCA deliberately uses conservative terminology. A more detailed output is not
 called LOD2.2 merely because it contains more polygons or height plateaus.
@@ -239,14 +240,14 @@ See [`docs/spatial-reference.md`](./docs/spatial-reference.md).
 
 ARCA is not designed as a heavy enterprise BIM repository or an all-encompassing CAD authoring suite.
 
-While ARCA natively generates standardized OGC CityJSON (v1.1) and CityGML (v2.0) LOD 2.0 representations alongside lightweight GeoJSON and GLB meshes, its primary focus is practical generalization:
+ARCA focuses on a fundamental GIS-native question:
 
 > How can a high-detail authoritative BIM asset be reduced into practical,
 > open, GIS-native representations for spatial analysis, web delivery, public
 > access, and downstream tiling without forcing every consumer to load the full
 > BIM representation?
 
-ARCA is also not currently:
+While ARCA supports standards-based exports to OGC CityJSON (v1.1) and CityGML (v2.0) LOD 2.0, ARCA is also not currently:
 
 - a BIM authoring application;
 - a Common Data Environment;
