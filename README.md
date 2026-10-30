@@ -94,7 +94,8 @@ spatial placement
         ▼
 GIS-native representations
         │
-        ├── GeoJSON
+        ├── LOD 1.3 GeoJSON & georeferenced GLB
+        ├── OGC CityJSON (v1.1) & CityGML (v2.0)
         ├── future GeoPackage/PostGIS workflows
         └── future tile/publication derivatives
         │
@@ -236,13 +237,9 @@ See [`docs/spatial-reference.md`](./docs/spatial-reference.md).
 
 ## What ARCA Is Not
 
-ARCA is not intended to compete by re-implementing established
-IFC-to-CityGML or IFC-to-CityJSON research as though that work did not exist.
+ARCA is not designed as a heavy enterprise BIM repository or an all-encompassing CAD authoring suite.
 
-Those approaches address important standardized city-model transformation
-problems.
-
-ARCA focuses on a complementary question:
+While ARCA natively generates standardized OGC CityJSON (v1.1) and CityGML (v2.0) LOD 2.0 representations alongside lightweight GeoJSON and GLB meshes, its primary focus is practical generalization:
 
 > How can a high-detail authoritative BIM asset be reduced into practical,
 > open, GIS-native representations for spatial analysis, web delivery, public
