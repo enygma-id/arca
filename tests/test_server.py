@@ -219,6 +219,7 @@ def test_start_studio_clean_shutdown(tmp_path):
 def test_handle_delete_prunes_outputs_multilod_and_split_data_json(tmp_path):
     import json
     from unittest.mock import MagicMock
+
     from arca.server.app import StudioRequestHandler
 
     ws = tmp_path / "ws"
