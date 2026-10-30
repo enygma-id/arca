@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """ARCA BIM2GIS Engine - Geodesic & topological transformation pipeline."""
 
+from arca.engine.atap import (
+    inspect_atap_file,
+    is_atap_geojson,
+    preprocess_atap,
+)
 from arca.engine.citygml import CityGMLWriter
 from arca.engine.cityjson import CityJSONWriter
 from arca.engine.georef import (
@@ -66,6 +71,9 @@ __all__ = [
     "CityGMLWriter",
     "CityJSONWriter",
     "GLBWriter",
+    "inspect_atap_file",
+    "is_atap_geojson",
+    "preprocess_atap",
     "PlanarUnionAccumulator",
     "write_envelope",
     "write_lod13_from_plateaus",

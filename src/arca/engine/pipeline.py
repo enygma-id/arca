@@ -12,6 +12,7 @@ from typing import Optional
 
 import numpy as np
 
+from arca.engine.atap import inspect_atap_file, preprocess_atap
 from arca.engine.citygml import CityGMLWriter
 from arca.engine.cityjson import CityJSONWriter
 from arca.engine.geom import (
@@ -540,6 +541,8 @@ def _viewer_item(
         "center_point_longitude": longitude,
         "scale": scale,
         "rotate": rotate,
+        "is_split": metadata.get("is_split", False),
+        "granularity": metadata.get("granularity", "split" if metadata.get("is_split") else "single_precinct"),
         "geojson": ({
             "lod1_3": f"./multilod/{dataset}/lod1_3/building.geojson",
         } if metadata.get("geometry", {}).get("lod1_3") else {}),
@@ -590,6 +593,15 @@ def sync_latest_viewer(
         lod13_file.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(target / "building.geojson", lod13_file)
 
+    buildings_dir = target / "buildings"
+    if buildings_dir.is_dir():
+        for b_dir in buildings_dir.iterdir():
+            if b_dir.is_dir() and (b_dir / "building.geojson").exists():
+                b_lod = b_dir / "lod1_3" / "building.geojson"
+                if not b_lod.exists():
+                    b_lod.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(b_dir / "building.geojson", b_lod)
+
     data_path = viewer_root / "data.json"
     if data_path.exists():
         data = json.loads(data_path.read_text(encoding="utf-8"))
@@ -613,29 +625,60 @@ def sync_latest_viewer(
     settings.setdefault("osm_max_zoom", 19)
     settings.setdefault("big_osm_gap_fill", False)
 
-    metadata = dict(metadata)
-    metadata["_out_dir"] = str(target)
-    new_item = _viewer_item(
-        dataset, item_id, name, longitude, latitude, scale, rotate, metadata
-    )
     items = data.setdefault("items", [])
-    match = None
-    for i, item in enumerate(items):
-        if str(item.get("id")) == str(item_id) or item.get("name") == name:
-            match = i
-            break
-    if match is None:
-        items.append(new_item)
+    if metadata.get("is_split") and metadata.get("buildings"):
+        items = [
+            it for it in items
+            if str(it.get("id")) != str(item_id)
+            and not str(it.get("id", "")).startswith(f"{dataset}_")
+        ]
+        for b_meta in metadata["buildings"]:
+            b_key = b_meta["id"]
+            b_item_id = f"{dataset}_{b_key}"
+            b_name = b_meta["name"]
+            b_dir_path = target / "buildings" / b_key
+            b_sub_dataset = f"{dataset}/buildings/{b_key}"
+            b_meta_path = b_dir_path / "metadata.json"
+            b_meta_dict = {}
+            if b_meta_path.exists():
+                try:
+                    b_meta_dict = json.loads(b_meta_path.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            b_meta_dict["_out_dir"] = str(b_dir_path)
+            sub_item = _viewer_item(
+                b_sub_dataset,
+                b_item_id,
+                b_name,
+                b_meta["lon"],
+                b_meta["lat"],
+                scale,
+                rotate,
+                b_meta_dict,
+            )
+            items.append(sub_item)
     else:
-        old = items[match]
-        attrs = dict(old.get("attributes") or {})
-        attrs.update({k: v for k, v in new_item["attributes"].items() if v is not None})
-        merged = dict(old)
-        merged.update({k: v for k, v in new_item.items() if k != "attributes"})
-        merged["attributes"] = attrs
-        items[match] = merged
+        metadata = dict(metadata)
+        metadata["_out_dir"] = str(target)
+        new_item = _viewer_item(
+            dataset, item_id, name, longitude, latitude, scale, rotate, metadata
+        )
+        match = None
+        for i, item in enumerate(items):
+            if str(item.get("id")) == str(item_id) or item.get("name") == name:
+                match = i
+                break
+        if match is None:
+            items.append(new_item)
+        else:
+            old = items[match]
+            attrs = dict(old.get("attributes") or {})
+            attrs.update({k: v for k, v in new_item["attributes"].items() if v is not None})
+            merged = dict(old)
+            merged.update({k: v for k, v in new_item.items() if k != "attributes"})
+            merged["attributes"] = attrs
+            items[match] = merged
 
-    # Ponytail: sanitize items to prune any phantom entries without actual files in viewer_root
     valid_items = []
     for item in items:
         geo_rel = (item.get("geojson") or {}).get("lod1_3")
@@ -772,6 +815,12 @@ def build_parser():
         choices=("item_center", "native"),
         default="item_center",
     )
+    p.add_argument(
+        "--merge",
+        action="store_true",
+        default=False,
+        help="Merge multi-building ATAP dataset into single precinct instead of splitting",
+    )
     return p
 
 
@@ -805,6 +854,8 @@ def inspect_model_file(file_path: Path, metadata_path: Optional[Path] = None) ->
             inspected_unit = detected_unit_name or "auto"
             inspected_unit_scale = detected_unit_factor
 
+        bldg_count = len(ents.by_type("IfcBuilding")) if hasattr(ents, "by_type") else 1
+
         return {
             "format": "IFC",
             "name": meta_info.get("name") if meta_info else None,
@@ -818,6 +869,7 @@ def inspect_model_file(file_path: Path, metadata_path: Optional[Path] = None) ->
             "rotate": rot_deg,
             "unit": inspected_unit,
             "unit_scale": inspected_unit_scale,
+            "building_count": bldg_count,
             "message": msg,
         }
     elif fmt == "SKP":
@@ -849,8 +901,11 @@ def inspect_model_file(file_path: Path, metadata_path: Optional[Path] = None) ->
             "rotate": round(skp_info.get("north_angle", 0.0), 2) if has_georef else 0.0,
             "unit": skp_unit,
             "unit_scale": skp_unit_scale,
+            "building_count": 1,
             "message": msg,
         }
+    elif fmt == "ATAP":
+        return inspect_atap_file(file_path)
     else:
         return {
             "format": "UNKNOWN",
@@ -874,7 +929,18 @@ def process_one(
     meta_file = getattr(args, "metadata", None) or find_metadata_json(input_path)
     meta_info = parse_metadata_json(meta_file) if meta_file else None
 
-    if fmt == "SKP":
+    if fmt == "ATAP":
+        metadata = preprocess_atap(
+            geojson_path=input_path,
+            out_dir=out_dir,
+            dataset=dataset,
+            building_name=(meta_info.get("name") if meta_info else None) or getattr(args, "name", None),
+            generate_mode=args.generate,
+            clean_legacy=args.clean_legacy,
+            merge=getattr(args, "merge", False),
+            progress_cb=progress_cb,
+        )
+    elif fmt == "SKP":
         _log(progress_cb, f"[0/5] Ingesting SketchUp (.skp): {input_path.name}", step=0, pct=3)
         skp_georef = extract_skp_georeference(
             skp_path=input_path,
@@ -898,36 +964,59 @@ def process_one(
         _log(progress_cb, f"      Generated georeferenced IFC4: {intermediate_ifc.name}", pct=20)
         actual_ifc_path = intermediate_ifc
         source_format = "SKP"
+        metadata = preprocess(
+            ifc_path=actual_ifc_path,
+            out_dir=out_dir,
+            anchor_lon=args.anchor_lon,
+            anchor_lat=args.anchor_lat,
+            source_unit=args.source_unit,
+            min_area_m2=args.min_area_m2,
+            generate_mode=args.generate,
+            generate_envelope=args.envelope,
+            xy_decimals=args.xy_decimals,
+            z_decimals=args.z_decimals,
+            clean_legacy=args.clean_legacy,
+            lod13_z_tolerance=args.lod13_z_tolerance,
+            lod13_simplify_m=args.lod13_simplify_m,
+            lod13_min_component_area_m2=args.lod13_min_component_area_m2,
+            crs=args.crs,
+            rotate=getattr(args, "rotate", 0.0),
+            ignore_georef=args.ignore_georef,
+            pure_geojson=args.pure_geojson,
+            legacy_manifests=args.legacy_manifests,
+            source_format=source_format,
+            metadata_info=meta_info,
+            progress_cb=progress_cb,
+        )
     elif fmt == "IFC":
         actual_ifc_path = input_path
         source_format = "IFC"
+        metadata = preprocess(
+            ifc_path=actual_ifc_path,
+            out_dir=out_dir,
+            anchor_lon=args.anchor_lon,
+            anchor_lat=args.anchor_lat,
+            source_unit=args.source_unit,
+            min_area_m2=args.min_area_m2,
+            generate_mode=args.generate,
+            generate_envelope=args.envelope,
+            xy_decimals=args.xy_decimals,
+            z_decimals=args.z_decimals,
+            clean_legacy=args.clean_legacy,
+            lod13_z_tolerance=args.lod13_z_tolerance,
+            lod13_simplify_m=args.lod13_simplify_m,
+            lod13_min_component_area_m2=args.lod13_min_component_area_m2,
+            crs=args.crs,
+            rotate=getattr(args, "rotate", 0.0),
+            ignore_georef=args.ignore_georef,
+            pure_geojson=args.pure_geojson,
+            legacy_manifests=args.legacy_manifests,
+            source_format=source_format,
+            metadata_info=meta_info,
+            progress_cb=progress_cb,
+        )
     else:
         raise ValueError(f"Unsupported model format for file: {input_path}")
-
-    metadata = preprocess(
-        ifc_path=actual_ifc_path,
-        out_dir=out_dir,
-        anchor_lon=args.anchor_lon,
-        anchor_lat=args.anchor_lat,
-        source_unit=args.source_unit,
-        min_area_m2=args.min_area_m2,
-        generate_mode=args.generate,
-        generate_envelope=args.envelope,
-        xy_decimals=args.xy_decimals,
-        z_decimals=args.z_decimals,
-        clean_legacy=args.clean_legacy,
-        lod13_z_tolerance=args.lod13_z_tolerance,
-        lod13_simplify_m=args.lod13_simplify_m,
-        lod13_min_component_area_m2=args.lod13_min_component_area_m2,
-        crs=args.crs,
-        rotate=getattr(args, "rotate", 0.0),
-        ignore_georef=args.ignore_georef,
-        pure_geojson=args.pure_geojson,
-        legacy_manifests=args.legacy_manifests,
-        source_format=source_format,
-        metadata_info=meta_info,
-        progress_cb=progress_cb,
-    )
 
     if fmt == "SKP" and not getattr(args, "keep_ifc", True) and intermediate_ifc.exists():
         intermediate_ifc.unlink()
@@ -947,6 +1036,10 @@ def process_one(
     if rotate == 0.0 and georef_meta.get("rotation_rad"):
         rotate = round(math.degrees(georef_meta["rotation_rad"]), 4)
 
+    eff_placement_mode = getattr(args, "placement_mode", "item_center")
+    if fmt == "ATAP" and getattr(args, "placement_mode", None) in {None, "item_center"}:
+        eff_placement_mode = "native"
+
     if getattr(args, "viewer_root", None) is not None:
         sync_latest_viewer(
             viewer_root=args.viewer_root,
@@ -959,7 +1052,7 @@ def process_one(
             latitude=latitude,
             scale=getattr(args, "scale", 1.0),
             rotate=rotate,
-            placement_mode=getattr(args, "placement_mode", "item_center"),
+            placement_mode=eff_placement_mode,
         )
     elif getattr(args, "legacy_manifests", False) or getattr(args, "generate", "lod1.3") in {"all", "glb"}:
         md = dict(metadata)

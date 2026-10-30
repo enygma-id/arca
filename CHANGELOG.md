@@ -21,10 +21,14 @@ All notable project changes should be documented here.
 - GitHub Actions continuous integration workflow (`.github/workflows/ci.yml`) testing across Ubuntu, Windows, and macOS on Python 3.10 and 3.12 with uv and pip.
 - GitHub issue templates (`.github/ISSUE_TEMPLATE/`) for bug reports, research proposals, and blank issue configuration.
 - Repository `.gitattributes` for line-ending normalization (LF) and explicit binary asset tracking.
+- ATAP 2.5D GeoJSON ingestion engine (`arca.engine.atap`) supporting discrete modular building packages (`outputs/<dataset>/buildings/<id>/`) and unified single-precinct massing via `--merge`.
+- Unified single-precinct hover inspection and precinct-level HUD metrics across MapLibre GL JS, Deck.gl, and CesiumJS renderers.
+- Dedicated Deck.gl Integration Guide (`docs/deckgl-guide.md`) covering modular per-building 3D GeoJSON extrusion and glTF/GLB georeferencing via `COORDINATE_SYSTEM.METER_OFFSETS`.
 
 ### Fixed
 
 - SKP model unit inspection returns `auto` so intermediate millimeter-scaled IFC export is properly converted to meters without 1000x scale blowup.
+- Dataset deletion cascade in `/api/delete` and viewer catalog synchronization to prune `outputs/`, `viewer/multilod/`, and all exact/split entries in `data.json` without rendering errors on empty states.
 
 ## [0.2.0] - 2026-09-18
 

@@ -323,6 +323,8 @@ function createThreeLayer(modelUrl, anchorLngLat, altitude = 0) {
 
 Deck.gl handles large polygon datasets with high-performance WebGL/WebGPU instancing and offers direct glTF support via loaders.gl.
 
+> **Per-Building & Precinct Guide**: For modular architectures, sub-building filtering (`building_id`), GLB placement via `COORDINATE_SYSTEM.METER_OFFSETS`, and interactive UI examples, see the [Deck.gl Integration Guide](./deckgl-guide.md).
+
 ### 3.1 Complete Deck.gl HTML/JS Example
 
 ```html

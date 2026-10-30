@@ -84,6 +84,35 @@ def test_api_download_and_history_for_glb(tmp_path):
         assert zf.read("model.glb") == b"glTF\x02\x00\x00\x00"
         assert b"FeatureCollection" in zf.read("model.geojson")
 
+    # Test /api/download bundling bundle.zip (all outputs including nested buildings/)
+    served_bytes.clear()
+    cityjson_file = out_dir / "building.city.json"
+    cityjson_file.write_text('{"type": "CityJSON"}', encoding="utf-8")
+    citygml_file = out_dir / "building.gml"
+    citygml_file.write_text('<core:CityModel/>', encoding="utf-8")
+    metadata_file = out_dir / "metadata.json"
+    metadata_file.write_text('{"dataset": "sample_dataset"}', encoding="utf-8")
+
+    sub_dir = out_dir / "buildings" / "101"
+    sub_dir.mkdir(parents=True, exist_ok=True)
+    (sub_dir / "building.geojson").write_text('{"type": "FeatureCollection", "features": []}', encoding="utf-8")
+
+    handler.path = "/api/download?dataset=sample_dataset&file=bundle.zip&name=Mall%20Mega"
+    handler.do_GET()
+    assert len(served_bytes) == 1
+    b_data, b_mime, b_name = served_bytes[0]
+    assert b_mime == "application/zip"
+    assert b_name == "Mall_Mega_bundle.zip"
+    with zipfile.ZipFile(io.BytesIO(b_data), "r") as zf:
+        namelist = sorted(zf.namelist())
+        assert "building.geojson" in namelist
+        assert "building.city.json" in namelist
+        assert "building.gml" in namelist
+        assert "metadata.json" in namelist
+        assert "render/model.glb" in namelist
+        assert "render/model.geojson" in namelist
+        assert "buildings/101/building.geojson" in namelist
+
 
 def test_model_geojson_rfc7946_structure():
     anchor = {
@@ -185,6 +214,75 @@ def test_start_studio_clean_shutdown(tmp_path):
                 proc.wait(timeout=3.0)
             except subprocess.TimeoutExpired:
                 proc.kill()
+
+
+def test_handle_delete_prunes_outputs_multilod_and_split_data_json(tmp_path):
+    import json
+    from unittest.mock import MagicMock
+    from arca.server.app import StudioRequestHandler
+
+    ws = tmp_path / "ws"
+    outputs_dir = ws / "outputs" / "sample_atap"
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    (outputs_dir / "building.geojson").write_text("{}", encoding="utf-8")
+
+    multilod_dir = ws / "viewer" / "multilod" / "sample_atap"
+    multilod_dir.mkdir(parents=True, exist_ok=True)
+    (multilod_dir / "model.glb").write_bytes(b"glTF")
+
+    viewer_dir = ws / "viewer"
+    viewer_dir.mkdir(parents=True, exist_ok=True)
+    data_json = viewer_dir / "data.json"
+    data_json.write_text(
+        json.dumps({
+            "items": [
+                {
+                    "id": "sample_atap_101",
+                    "name": "sample_atap_101",
+                    "geojson": {"lod1_3": "./multilod/sample_atap/buildings/101/building.geojson"},
+                    "detail": {"glb": "./multilod/sample_atap/buildings/101/render/model.glb"}
+                },
+                {
+                    "id": "sample_atap_102",
+                    "name": "sample_atap_102",
+                    "geojson": {"lod1_3": "./multilod/sample_atap/buildings/102/building.geojson"},
+                    "detail": {"glb": "./multilod/sample_atap/buildings/102/render/model.glb"}
+                },
+                {
+                    "id": "other_dataset",
+                    "name": "other_dataset",
+                    "geojson": {"lod1_3": "./multilod/other_dataset/lod1_3/building.geojson"},
+                    "detail": {"glb": "./multilod/other_dataset/render/model.glb"}
+                }
+            ]
+        }),
+        encoding="utf-8"
+    )
+
+    handler = StudioRequestHandler.__new__(StudioRequestHandler)
+    handler.server = MagicMock()
+    handler.server.workspace = ws
+
+    sent_jsons = []
+    def mock_send_json(data, status=200):
+        sent_jsons.append((status, data))
+    handler.send_json = mock_send_json
+
+    # Delete sample_atap with mixed-case query param
+    handler.path = "/api/delete?dataset=Sample_Atap"
+    handler.handle_delete()
+
+    assert len(sent_jsons) == 1
+    status, payload = sent_jsons[0]
+    assert status == 200
+    assert payload["success"] is True
+    assert not outputs_dir.exists()
+    assert not multilod_dir.exists()
+
+    updated_data = json.loads(data_json.read_text(encoding="utf-8"))
+    remaining_ids = [it["id"] for it in updated_data["items"]]
+    assert remaining_ids == ["other_dataset"]
+
 
 
 

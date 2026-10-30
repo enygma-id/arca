@@ -115,8 +115,8 @@
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
               </svg>
               <div class="dropzone-title">Choose or Drag Model File</div>
-              <div class="dropzone-desc">Supports .ifc and .skp files</div>
-              <input type="file" id="fileInput" class="file-input" accept=".ifc,.skp">
+              <div class="dropzone-desc">Supports .ifc, .skp, and ATAP .geojson files</div>
+              <input type="file" id="fileInput" class="file-input" accept=".ifc,.skp,.geojson,.json">
             </div>
 
             <!-- File Preview Badge -->
@@ -188,6 +188,15 @@
                 <option value="citygml">CityGML only (building.gml)</option>
                 <option value="lod1.3">Pure GeoJSON LOD 1.3 only (single building.geojson)</option>
                 <option value="glb">3D Render GLB only (model.glb)</option>
+              </select>
+            </div>
+
+            <!-- Dataset Granularity (Shown only when multi-building dataset is detected) -->
+            <div class="form-group" id="granularityGroup" style="display: none;">
+              <label class="form-label" for="granularityMode">Dataset Granularity</label>
+              <select id="granularityMode" class="form-select">
+                <option value="split" selected>Per Building (Split into discrete units)</option>
+                <option value="merge">Single Precinct (Merge into unified massing)</option>
               </select>
             </div>
 
@@ -329,6 +338,12 @@
 
               <!-- Action Buttons -->
               <div class="action-buttons">
+                <a id="btnDownloadBundle" href="#" class="btn-action highlight" style="display:none;" download>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                  </svg>
+                  Bundle (.zip)
+                </a>
                 <a id="btnDownloadGeoJSON" href="#" class="btn-action" style="display:none;" download>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
