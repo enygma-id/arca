@@ -16,6 +16,16 @@ ARCA provides direct OGC CityJSON (v1.1) and CityGML (v2.0) LOD 2.0 representati
 
 However, ARCA does not claim full LOD3 or LOD4 reconstruction (interior spaces, detailed window frames, or architectural fixtures are generalized into external LOD 2.0 boundary surfaces). Complex non-manifold geometries from arbitrary BIM authoring tools may be simplified to preserve GIS validity.
 
+## OGC Schema Conformance vs Syntactic Output
+
+ARCA generates CityJSON (v1.1) and CityGML (v2.0) files structured for compatibility with tools such as QGIS, CityJSON Ninja, and 3D GIS viewers.
+
+However:
+- Syntactic generation (producing well-formed XML and JSON) does not constitute formal OGC Schema Conformance certification.
+- Outputs have not been subjected to the official OGC Compliance Testing Program (CITE/ETS) or full XML Schema (XSD) validation suites.
+- Available tests verify structural validity and parser ingest, but do not imply exhaustive schema compliance across all edge cases of the OGC standards.
+- Users requiring strict compliance guarantees should validate output files against official OGC schemas before ingestion into formal municipal SDI workflows.
+
 ## Enhanced LOD1.3 Is Not LOD2.2
 
 The current richer generalized profile may preserve multiple roof-height

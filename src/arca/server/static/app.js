@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const resFootprint = document.getElementById('resFootprint');
   const resAnchor = document.getElementById('resAnchor');
 
+  const btnDownloadBundle = document.getElementById('btnDownloadBundle');
   const btnDownloadGeoJSON = document.getElementById('btnDownloadGeoJSON');
   const btnDownloadGLB = document.getElementById('btnDownloadGLB');
   const btnDownloadCityJSON = document.getElementById('btnDownloadCityJSON');
@@ -153,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (progressContainer) progressContainer.style.display = 'none';
     if (progressTimer) progressTimer.style.display = 'none';
     if (btnDeleteResult) btnDeleteResult.style.display = 'none';
+    if (btnDownloadBundle) btnDownloadBundle.style.display = 'none';
     if (btnDownloadGeoJSON) btnDownloadGeoJSON.style.display = 'none';
     if (btnDownloadGLB) btnDownloadGLB.style.display = 'none';
     if (btnDownloadCityJSON) btnDownloadCityJSON.style.display = 'none';
@@ -197,6 +199,21 @@ document.addEventListener('DOMContentLoaded', () => {
       if (inspectId !== currentInspectId) return;
 
       const info = res.data || res;
+
+      const granularityGroup = document.getElementById('granularityGroup');
+      const granularityMode = document.getElementById('granularityMode');
+      const bldgCount = Number(info.building_count || 1);
+
+      if (bldgCount > 1) {
+        if (granularityGroup) granularityGroup.style.display = 'block';
+        if (granularityMode && granularityMode.options.length >= 2) {
+          granularityMode.options[0].textContent = `Per Building (Split into ${bldgCount} discrete units)`;
+          granularityMode.options[1].textContent = `Single Precinct (Merge ${bldgCount} buildings into one)`;
+        }
+      } else {
+        if (granularityGroup) granularityGroup.style.display = 'none';
+        if (granularityMode) granularityMode.value = 'split';
+      }
 
       if (info.has_georef) {
         inspectBanner.className = 'inspect-banner success';
@@ -247,6 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
           ['WGS84:', originText],
           ['Rotation:', rot ? rot + '°' : '0°'],
         ];
+        if (info.building_count && info.building_count > 1) {
+          gridItems.push(['Buildings:', `${info.building_count} buildings (${info.part_count || info.building_count} parts)`]);
+        }
 
         gridItems.forEach(([label, value]) => {
           const itemEl = document.createElement('div');
@@ -302,8 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleFileSelected(file) {
     if (!file) return;
     const ext = '.' + file.name.split('.').pop().toLowerCase();
-    if (ext !== '.ifc' && ext !== '.skp') {
-      alert('Only .ifc or .skp files are supported');
+    if (ext !== '.ifc' && ext !== '.skp' && ext !== '.geojson' && ext !== '.json') {
+      alert('Only .ifc, .skp, and .geojson files are supported');
       return;
     }
 
@@ -311,11 +331,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fileName.textContent = file.name;
     fileSize.textContent = formatBytes(file.size);
     
-    fileBadge.textContent = ext.replace('.', '').toUpperCase();
-    fileBadge.className = 'file-badge ' + (ext === '.ifc' ? 'ifc' : 'skp');
+    fileBadge.textContent = (ext === '.geojson' || ext === '.json') ? 'ATAP' : ext.replace('.', '').toUpperCase();
+    fileBadge.className = 'file-badge ' + (ext === '.ifc' ? 'ifc' : ext === '.skp' ? 'skp' : 'atap');
 
     dropzone.style.display = 'none';
     filePreview.classList.add('active');
+
+    const granGroup = document.getElementById('granularityGroup');
+    if (granGroup) granGroup.style.display = 'none';
 
     // Button stays disabled and in loading state until metadata inspection completes
     btnSubmit.disabled = true;
@@ -343,6 +366,10 @@ document.addEventListener('DOMContentLoaded', () => {
     inputCRS.value = '';
     inputRotate.value = '';
     inputSourceUnit.value = 'auto';
+    const granGroup = document.getElementById('granularityGroup');
+    const granMode = document.getElementById('granularityMode');
+    if (granGroup) granGroup.style.display = 'none';
+    if (granMode) granMode.value = 'split';
     if (georefAccordion) georefAccordion.open = false;
   }
 
@@ -541,6 +568,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     formData.append('dataset_name', inputDatasetName.value.trim());
     formData.append('generate', document.getElementById('generateMode').value);
+    const granEl = document.getElementById('granularityMode');
+    if (granEl) {
+      formData.append('granularity', granEl.value);
+    }
     formData.append('anchor_lon', inputAnchorLon.value.trim());
     formData.append('anchor_lat', inputAnchorLat.value.trim());
     formData.append('crs', inputCRS.value.trim());
@@ -627,6 +658,14 @@ document.addEventListener('DOMContentLoaded', () => {
               resAnchor.textContent = `${Number(data.summary.anchor[0]).toFixed(6)}, ${Number(data.summary.anchor[1]).toFixed(6)}`;
             } else {
               resAnchor.textContent = '-';
+            }
+
+            if (data.files && data.files.bundle && btnDownloadBundle) {
+              btnDownloadBundle.href = data.files.bundle.url;
+              btnDownloadBundle.download = data.files.bundle.name || 'bundle.zip';
+              btnDownloadBundle.style.display = 'inline-flex';
+            } else if (btnDownloadBundle) {
+              btnDownloadBundle.style.display = 'none';
             }
 
             if (data.files && data.files.geojson) {
@@ -852,6 +891,9 @@ document.addEventListener('DOMContentLoaded', () => {
           td5.appendChild(document.createTextNode(' '));
         }
 
+        if (item.has_bundle) {
+          addDownloadLink('bundle.zip', `${bName}_bundle.zip`, 'ZIP', 'Download Full Bundle ZIP');
+        }
         if (item.has_geojson) {
           addDownloadLink('building.geojson', `${bName}.geojson`, 'GeoJSON', 'Download GeoJSON');
         }

@@ -184,3 +184,5 @@ uv run arca run model.ifc --generate all --out outputs/
 - **CityGML**:
   - Desktop GIS: Open directly in **QGIS** (using the CityGML plugin or native OGR provider) and **ArcGIS Pro**.
   - ETL Pipelines: Fully compatible with **FME** workflows and **3DCityDB** imports.
+
+> **Note on Compliance**: ARCA outputs are engineered for practical downstream interoperability with tools like QGIS and CityJSON Ninja. Syntactic validity and structural ingestion do not substitute for formal OGC CITE/ETS compliance certification. See [`KNOWN_LIMITATIONS.md`](../KNOWN_LIMITATIONS.md).

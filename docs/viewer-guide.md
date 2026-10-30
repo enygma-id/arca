@@ -108,6 +108,41 @@ ARCA uses the official **Badan Informasi Geospasial (BIG)** Rupabumi Indonesia t
 
 All viewer examples below are configured to use Peta BIG natively. Each example initializes with a nationwide overview of Indonesia (`[118.0, -2.5]`) and includes an interactive **"Go to Target"** button that dynamically computes the bounding box/center from the loaded GeoJSON data and flies smoothly to it.
 
+### 1.6 Granularity: Single-Building vs Multi-Building Datasets
+
+ARCA automatically resolves output structure based on input model composition:
+
+1. **Inherently Unified (Single Building):**
+   - Standard **IFC**, **SKP**, or single-structure GeoJSON files default to a **single unified asset**.
+   - Output files (`building.geojson`, `model.glb`, `building.city.json`, `building.gml`) are written directly to `outputs/<dataset>/` without subfolders.
+
+2. **Multi-Building Inputs (e.g., Multi-Tower ATAP GeoJSON):**
+   - **Split Mode (Default):** Discrete modular packages are generated per building under `buildings/<building_id>/`, while composite precinct files are retained at the root.
+   - **Merge Mode (`--merge`):** Combines all building massings into a single unified precinct asset without `buildings/` subfolders.
+
+Directory layout for modular datasets:
+
+```text
+outputs/<dataset>/
+├── building.geojson                  # Master GeoJSON (entire precinct)
+├── metadata.json                     # Master anchor & georeferencing
+├── render/
+│   ├── model.glb                     # Master GLB (entire precinct)
+│   └── model.geojson                 # Master WGS84 placement anchor
+└── buildings/
+    ├── 101/                          # Building unit 1 (e.g. Tower A)
+    │   ├── building.geojson          # LOD 1.3 footprints for building 101
+    │   ├── metadata.json             # Anchor metadata for building 101
+    │   └── render/
+    │       ├── model.glb             # 3D detail GLB for building 101
+    │       └── model.geojson         # WGS84 anchor for building 101
+    └── 102/                          # Building unit 2 (e.g. Podium B)
+        ├── building.geojson
+        └── render/
+            ├── model.glb
+            └── model.geojson
+```
+
 ---
 
 ## 2. MapLibre GL JS Integration
@@ -317,6 +352,45 @@ function createThreeLayer(modelUrl, anchorLngLat, altitude = 0) {
 }
 ```
 
+### 2.3 Modular Per-Building Filtering & Isolation
+
+To isolate or highlight specific buildings in MapLibre:
+
+#### A. Filtering GeoJSON Features with Map Expressions
+Use MapLibre `setFilter` with the `building_id` attribute:
+
+```javascript
+// Show all buildings in precinct
+map.setFilter('arca-storeys', null);
+
+// Isolate building '101'
+map.setFilter('arca-storeys', ['==', ['get', 'building_id'], '101']);
+
+// Dynamic styling: Highlight selected building in amber, others in cyan
+map.setPaintProperty('arca-storeys', 'fill-extrusion-color', [
+  'case',
+  ['==', ['get', 'building_id'], selectedBuildingId],
+  '#f2ae49', // Selected
+  '#38bdf8'  // Default
+]);
+```
+
+#### B. Loading Per-Building 3D GLB Models
+Load the specific building's companion `buildings/<id>/render/model.geojson` to retrieve its WGS84 anchor, then instantiate the Three.js layer:
+
+```javascript
+async function addBuildingGlb(map, dataset, buildingId) {
+  const metaRes = await fetch(`./outputs/${dataset}/buildings/${buildingId}/render/model.geojson`);
+  const meta = await metaRes.json();
+  const anchor = meta.features[0].geometry.coordinates; // [lon, lat, alt]
+  const glbUrl = `./outputs/${dataset}/buildings/${buildingId}/render/model.glb`;
+
+  const layer = createThreeLayer(glbUrl, [anchor[0], anchor[1]], anchor[2] || 0);
+  layer.id = `arca-glb-${buildingId}`;
+  map.addLayer(layer);
+}
+```
+
 ---
 
 ## 3. Deck.gl Integration
@@ -476,6 +550,59 @@ Deck.gl handles large polygon datasets with high-performance WebGL/WebGPU instan
 </script>
 </body>
 </html>
+```
+
+### 3.2 Modular Per-Building Filtering & Multi-Model Placement
+
+#### A. GeoJsonLayer Per-Building Filtering
+Filter the master feature collection or load the dedicated `buildings/<id>/building.geojson`:
+
+```javascript
+// Filter client-side by building_id
+const filteredFeatures = selectedId === 'ALL'
+  ? geojsonData.features
+  : geojsonData.features.filter(f => String(f.properties.building_id) === String(selectedId));
+
+const buildingLayer = new deck.GeoJsonLayer({
+  id: 'arca-geojson-modular',
+  data: { type: 'FeatureCollection', features: filteredFeatures },
+  extruded: true,
+  filled: true,
+  getElevation: f => Math.max(0, (f.properties.top_z ?? f.properties.height ?? 0) - (f.properties.base_z || 0)),
+  getFillColor: f => {
+    const bId = String(f.properties.building_id || '');
+    return bId === selectedId ? [242, 174, 73, 230] : [56, 189, 248, 200];
+  },
+  updateTriggers: {
+    getFillColor: [selectedId]
+  },
+  pickable: true
+});
+```
+
+#### B. ScenegraphLayer Per-Building GLB Placement
+Position sub-building GLBs using metric offsets relative to their WGS84 anchor:
+
+```javascript
+import { ScenegraphLayer } from '@deck.gl/mesh-layers';
+import { COORDINATE_SYSTEM } from '@deck.gl/core';
+
+function createModularGlbLayer(buildingId, glbUrl, anchorCoords, heading = 0) {
+  const [lon, lat, alt] = anchorCoords;
+
+  return new ScenegraphLayer({
+    id: `glb-${buildingId}`,
+    data: [{ position: [0, 0, 0] }],
+    scenegraph: glbUrl,
+    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateOrigin: [lon, lat, alt || 0],
+    getPosition: d => d.position,
+    getOrientation: () => [0, -heading, 90],
+    sizeScale: 1,
+    _lighting: 'pbr',
+    pickable: true
+  });
+}
 ```
 
 ---
@@ -676,6 +803,52 @@ async function loadArcaGlb(viewer, glbUrl, lon, lat, height = 0) {
 </script>
 </body>
 </html>
+```
+
+### 4.4 Modular Per-Building Entity Filtering & Multi-Model Placement
+
+#### A. Toggling Entity Visibility by `building_id`
+Filter or toggle entities created from the GeoJSON datasource:
+
+```javascript
+function setBuildingVisibility(dataSource, targetBuildingId, visibleOnly = false) {
+  for (const entity of dataSource.entities.values) {
+    const bId = entity.properties?.building_id?.getValue();
+    if (visibleOnly) {
+      entity.show = (bId === targetBuildingId);
+    } else {
+      // Highlight matching building
+      if (bId === targetBuildingId) {
+        entity.polygon.material = Cesium.Color.fromCssColorString('#f2ae49').withAlpha(0.88);
+      } else {
+        entity.polygon.material = Cesium.Color.fromCssColorString('#38bdf8').withAlpha(0.7);
+      }
+    }
+  }
+}
+```
+
+#### B. Placing Per-Building GLBs with Cesium Primitives
+Attach individual building models to their respective ENU frames:
+
+```javascript
+async function loadModularGlb(viewer, dataset, buildingId) {
+  const metaRes = await fetch(`./outputs/${dataset}/buildings/${buildingId}/render/model.geojson`);
+  const meta = await metaRes.json();
+  const [lon, lat, alt] = meta.features[0].geometry.coordinates;
+  const glbUrl = `./outputs/${dataset}/buildings/${buildingId}/render/model.glb`;
+
+  const origin = Cesium.Cartesian3.fromDegrees(lon, lat, alt || 0);
+  const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(origin);
+
+  const model = await Cesium.Model.fromGltfAsync({
+    url: glbUrl,
+    modelMatrix: modelMatrix,
+    scale: 1.0
+  });
+
+  return viewer.scene.primitives.add(model);
+}
 ```
 
 ---

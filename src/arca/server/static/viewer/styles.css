@@ -98,3 +98,11 @@ button,select,input{min-height:38px}
 
 .representation-btn.rep-unavailable:not(.active){opacity:.72;border-style:dashed;}
 .representation-btn.rep-loading{cursor:wait;}
+
+.part-tooltip{position:absolute;z-index:25;pointer-events:none;display:none;background:rgba(10,13,16,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(94,230,184,.45);border-radius:8px;padding:8px 12px;box-shadow:0 12px 30px rgba(0,0,0,.6);font-size:12px;color:var(--text);line-height:1.45;white-space:nowrap}
+.part-tooltip.visible{display:block}
+.part-tooltip-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.09)}
+.part-tooltip-title{font-weight:700;color:#fff;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.part-tooltip-badge{font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:rgba(94,230,184,.14);color:var(--accent);padding:1px 6px;border-radius:4px;border:1px solid rgba(94,230,184,.3)}
+.part-tooltip-row{display:flex;justify-content:space-between;gap:14px;font-size:11px;color:var(--muted)}
+.part-tooltip-row span.val{color:#f4f7f8;font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}

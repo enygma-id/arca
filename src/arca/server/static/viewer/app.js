@@ -71,6 +71,7 @@ const state = {
   gisRepresentation: "lod1_3",
   renderer: null,
   selected: null,
+  hoveredAssetId: null,
   failedAssets: [],
   fallbackAssets: [],
   representationBusy: false,
@@ -453,18 +454,33 @@ function transformPosition(p, sourceCenter, targetCenter, rotateDeg, scale) {
 function prepareAssetGeoJSON(fc, item) {
   const mode = state.config?.settings?.placement_mode || "item_center";
   const target = itemCenter(item);
+  const isSingle = item.granularity === 'single_precinct' ||
+                   fc.properties?.is_single_precinct === true ||
+                   fc.properties?.granularity === 'single_precinct' ||
+                   (!item.is_split && !item.buildings && (state.items.length === 1 || item.granularity !== 'split'));
 
   if (mode === "native" || !target) {
     return {
       ...fc,
-      features: (fc.features || []).map(f => ({
-        ...f,
-        properties: {
-          ...(f.properties || {}),
-          __asset_id: String(item.id),
-          __asset_name: item.name
-        }
-      }))
+      features: (fc.features || []).map(f => {
+        const baseZ = Number(f.properties?.base_z ?? f.properties?.z_min ?? 0);
+        return {
+          ...f,
+          geometry: f.geometry?.coordinates ? {
+            ...f.geometry,
+            coordinates: walkCoordinates(
+              f.geometry.coordinates,
+              p => [Number(p[0]), Number(p[1]), p.length > 2 && Number.isFinite(Number(p[2])) ? Number(p[2]) : baseZ]
+            )
+          } : f.geometry,
+          properties: {
+            ...(f.properties || {}),
+            __asset_id: String(item.id),
+            __asset_name: item.name,
+            __is_single_precinct: isSingle
+          }
+        };
+      })
     };
   }
 
@@ -473,34 +489,41 @@ function prepareAssetGeoJSON(fc, item) {
 
   return {
     ...fc,
-    features: (fc.features || []).map(f => ({
-      ...f,
-      geometry: f.geometry?.coordinates ? {
-        ...f.geometry,
-        coordinates: walkCoordinates(
-          f.geometry.coordinates,
-          p => transformPosition(
-            p,
-            source,
-            target,
-            Number(item.rotate || 0),
-            Number(item.scale ?? 1)
+    features: (fc.features || []).map(f => {
+      const baseZ = Number(f.properties?.base_z ?? f.properties?.z_min ?? 0);
+      return {
+        ...f,
+        geometry: f.geometry?.coordinates ? {
+          ...f.geometry,
+          coordinates: walkCoordinates(
+            f.geometry.coordinates,
+            p => {
+              const pZ = p.length > 2 && Number.isFinite(Number(p[2])) ? Number(p[2]) : baseZ;
+              return transformPosition(
+                [p[0], p[1], pZ],
+                source,
+                target,
+                Number(item.rotate || 0),
+                Number(item.scale ?? 1)
+              );
+            }
           )
-        )
-      } : f.geometry,
-      properties: (() => {
-        const props = {
-          ...(f.properties || {}),
-          __asset_id: String(item.id),
-          __asset_name: item.name
-        };
-        const s = Number.isFinite(Number(item.scale)) ? Number(item.scale) : 1;
-        for (const key of ["base_z", "top_z", "height", "z_min", "z_max"]) {
-          if (Number.isFinite(Number(props[key]))) props[key] = Number(props[key]) * s;
-        }
-        return props;
-      })()
-    }))
+        } : f.geometry,
+        properties: (() => {
+          const props = {
+            ...(f.properties || {}),
+            __asset_id: String(item.id),
+            __asset_name: item.name,
+            __is_single_precinct: isSingle
+          };
+          const s = Number.isFinite(Number(item.scale)) ? Number(item.scale) : 1;
+          for (const key of ["base_z", "top_z", "height", "z_min", "z_max"]) {
+            if (Number.isFinite(Number(props[key]))) props[key] = Number(props[key]) * s;
+          }
+          return props;
+        })()
+      };
+    })
   };
 }
 
@@ -678,6 +701,8 @@ async function activateGISRepresentation(key, {initial = false} = {}) {
 
   if (!successful.length && state.items.length) {
     setStatus(`No items could be rendered for ${representationLabel(key)}.`);
+  } else if (!state.items.length) {
+    setStatus('No models loaded.');
   } else if (failedAssets.length) {
     setStatus(
       `${representationLabel(key)} active: ${successful.length}/${state.items.length} rendered, ` +
@@ -921,13 +946,20 @@ function focusBuilding(id) {
 async function reloadDataset(focusId) {
   try {
     setStatus('Updating building data...');
+    hidePartTooltip();
+    state.selected = null;
+    updateSelectedReference();
     await loadDataset();
     await refreshRendererRepresentation();
     renderBuildingsList();
     if (focusId) {
       focusBuilding(focusId);
     }
-    setStatus('Ready');
+    if (!state.items.length) {
+      setStatus('No models loaded.');
+    } else {
+      setStatus('Ready');
+    }
   } catch (err) {
     console.error('Error reloading dataset:', err);
     setStatus(`Failed to load dataset: ${err.message}`);
@@ -963,6 +995,90 @@ function closeAssetCard(event) {
   state.renderer?.map?.dragPan?.enable?.();
   state.renderer?.updateSelection?.();
   updateRepresentationControls();
+}
+
+function isSinglePrecinct(props) {
+  if (!props) return false;
+  if (props.__is_single_precinct !== undefined) return Boolean(props.__is_single_precinct);
+  if (props.is_single_precinct !== undefined) return Boolean(props.is_single_precinct);
+  if (props.granularity === 'single_precinct' || props.granularity === 'merge') return true;
+  const asset = state.assetById.get(String(props.__asset_id || ''));
+  if (asset) {
+    if (asset.item?.granularity === 'single_precinct' || asset.item?.granularity === 'merge') return true;
+    if (asset.item?.is_split === false) return true;
+  }
+  return state.items.length === 1 && !state.items[0]?.is_split;
+}
+
+function showPartTooltip(props, x, y, isSingle = false) {
+  const el = document.getElementById('partTooltip');
+  if (!el || !props) return;
+  const bldgName = props.__asset_name || props.building_name || props.name || 'Building';
+
+  if (isSingle) {
+    const asset = state.assetById.get(String(props.__asset_id || ''));
+    const attr = asset?.item?.attributes || {};
+    const totalHeight = attr.tinggi != null ? `${Number(attr.tinggi).toFixed(1)}m` : (props.height != null ? `${Number(props.height).toFixed(1)}m` : '-');
+    const totalArea = attr.luas != null ? `${Number(attr.luas).toLocaleString()} m²` : (props.luas_m2 != null ? `${Number(props.luas_m2).toLocaleString()} m²` : '-');
+    const storeys = attr.jumlah_lantai != null ? `${attr.jumlah_lantai} parts` : (props.storeys != null ? `${props.storeys} parts` : '-');
+    const baseZ = props.base_z != null ? `${Number(props.base_z).toFixed(1)}m` : '-';
+
+    el.innerHTML = `
+      <div class="part-tooltip-head">
+        <span class="part-tooltip-title">${escapeHtml(bldgName)}</span>
+        <span class="part-tooltip-badge">Precinct</span>
+      </div>
+      <div class="part-tooltip-row">
+        <span>Base Elev</span><span class="val">${baseZ}</span>
+      </div>
+      <div class="part-tooltip-row">
+        <span>Total Height</span><span class="val">${totalHeight}</span>
+      </div>
+      <div class="part-tooltip-row">
+        <span>Total Area</span><span class="val">${totalArea}</span>
+      </div>
+      <div class="part-tooltip-row">
+        <span>Massing Parts</span><span class="val">${storeys}</span>
+      </div>
+    `;
+  } else {
+    const partId = props.part_id || props.name || 'Part';
+    const baseZ = props.base_z != null ? Number(props.base_z).toFixed(1) : '-';
+    const height = props.height != null ? Number(props.height).toFixed(1) : (props.tinggi_m != null ? Number(props.tinggi_m).toFixed(1) : '-');
+    const topZ = props.top_z != null ? Number(props.top_z).toFixed(1) : '-';
+
+    el.innerHTML = `
+      <div class="part-tooltip-head">
+        <span class="part-tooltip-title">${escapeHtml(bldgName)}</span>
+        <span class="part-tooltip-badge">${escapeHtml(partId)}</span>
+      </div>
+      <div class="part-tooltip-row">
+        <span>Base Elev</span><span class="val">${baseZ}m</span>
+      </div>
+      <div class="part-tooltip-row">
+        <span>Part Height</span><span class="val">${height}m</span>
+      </div>
+      <div class="part-tooltip-row">
+        <span>Top Elev</span><span class="val">${topZ}m</span>
+      </div>
+    `;
+  }
+
+  const stage = el.parentElement;
+  const stageW = stage ? stage.clientWidth : window.innerWidth;
+  const stageH = stage ? stage.clientHeight : window.innerHeight;
+  let posX = x + 14;
+  let posY = y + 14;
+  if (posX + 180 > stageW) posX = x - 190;
+  if (posY + 120 > stageH) posY = y - 130;
+  el.style.left = `${Math.max(10, Math.round(posX))}px`;
+  el.style.top = `${Math.max(10, Math.round(posY))}px`;
+  el.classList.add('visible');
+}
+
+function hidePartTooltip() {
+  const el = document.getElementById('partTooltip');
+  if (el) el.classList.remove('visible');
 }
 
 function showAssetCard(asset) {
@@ -1211,20 +1327,54 @@ class DeckRenderer {
         return Math.max(0,topZ-baseZ);
       },
       getFillColor:f => {
-        const selected = state.selected &&
-          String(f.properties?.__asset_id) === String(state.selected.item.id);
-        if (selected) return [242,174,73,225];
+        const aId = String(f.properties?.__asset_id || '');
+        if (state.selected && String(state.selected.item.id) === aId) {
+          return [242,174,73,225];
+        }
+        if (state.hoveredAssetId && state.hoveredAssetId === aId) {
+          return [94,230,184,220];
+        }
         const semantic=f.properties?.semantic_type;
         if (semantic==='RoofSurface') return [196,204,213,225];
         if (semantic==='GroundSurface') return [130,144,156,210];
         return [174,185,198,215];
       },
+      updateTriggers: {
+        getFillColor: [state.selected?.item?.id, state.hoveredAssetId]
+      },
       getLineColor:[58,68,76,230],
       lineWidthMinPixels:1,
       pickable:true,
+      autoHighlight: !state.hoveredAssetId,
+      highlightColor:[94,230,184,180],
       onClick:({object}) => {
         const asset=findAssetFromFeature(object);
         if(asset)showAssetCard(asset);
+      },
+      onHover:({object,x,y}) => {
+        if(object && object.properties){
+          const isSingle = isSinglePrecinct(object.properties);
+          if (isSingle) {
+            const aId = String(object.properties.__asset_id || '');
+            if (state.hoveredAssetId !== aId) {
+              state.hoveredAssetId = aId;
+              this.update();
+            }
+            showPartTooltip(object.properties, x, y, true);
+          } else {
+            if (state.hoveredAssetId) {
+              state.hoveredAssetId = null;
+              this.update();
+            }
+            showPartTooltip(object.properties, x, y, false);
+          }
+        } else {
+          if (state.hoveredAssetId) {
+            state.hoveredAssetId = null;
+            this.update();
+          }
+          hidePartTooltip();
+        }
       }
     });
   }
@@ -1341,6 +1491,7 @@ class DeckRenderer {
   selectAsset(){this.update();}
   clearDetail(){this.update();}
   async enterGlb(assets=detailAssets()){
+    if(!assets.length){this.clearDetail();return;}
     const placements=await Promise.allSettled(assets.map(asset=>detailPlacementForAsset(asset)));
     const loaded=placements.filter(result=>result.status==='fulfilled').length;
     if(!loaded)throw placements.find(result=>result.status==='rejected')?.reason || new Error('No GLB placement available');
@@ -1354,6 +1505,7 @@ class DeckRenderer {
     this.flyTo({longitude,latitude,zoom:16.5,pitch:55,bearing:0,duration:400});
   }
   destroy(){
+    hidePartTooltip();
     this.container.removeEventListener('contextmenu', this.onContextMenu, true);
     this.instance?.finalize();
     this.instance=null;
@@ -1456,10 +1608,58 @@ class MapLibreRenderer {
       this.map.on('mouseup',this.stopDrag);
       this.map.on('mouseleave',this.stopDrag);
     }
+    let hoveredId = null;
+    this.map.on('mousemove', layerId, (e) => {
+      if (e.features && e.features.length > 0) {
+        const feat = e.features[0];
+        const isSingle = isSinglePrecinct(feat.properties);
+        this.map.getCanvas().style.cursor = 'pointer';
+
+        if (isSingle) {
+          if (hoveredId !== null) {
+            try { this.map.setFeatureState({source: 'buildings', id: hoveredId}, {hover: false}); } catch {}
+            hoveredId = null;
+          }
+          const aId = String(feat.properties?.__asset_id || '');
+          if (state.hoveredAssetId !== aId) {
+            state.hoveredAssetId = aId;
+            this.updateSelection();
+          }
+          showPartTooltip(feat.properties, e.point.x, e.point.y, true);
+        } else {
+          if (state.hoveredAssetId) {
+            state.hoveredAssetId = null;
+            this.updateSelection();
+          }
+          if (hoveredId !== null && hoveredId !== feat.id) {
+            try { this.map.setFeatureState({source: 'buildings', id: hoveredId}, {hover: false}); } catch {}
+          }
+          hoveredId = feat.id;
+          try { this.map.setFeatureState({source: 'buildings', id: hoveredId}, {hover: true}); } catch {}
+          showPartTooltip(feat.properties, e.point.x, e.point.y, false);
+        }
+      }
+    });
+    this.map.on('mouseleave', layerId, () => {
+      if (hoveredId !== null) {
+        try { this.map.setFeatureState({source: 'buildings', id: hoveredId}, {hover: false}); } catch {}
+        hoveredId = null;
+      }
+      if (state.hoveredAssetId) {
+        state.hoveredAssetId = null;
+        this.updateSelection();
+      }
+      this.map.getCanvas().style.cursor = '';
+      hidePartTooltip();
+    });
   }
 
   addLod13(){
-    this.map.addSource('buildings',{type:'geojson',data:mergeFeatureCollections(visibleOverviewAssets())});
+    this.map.addSource('buildings',{
+      type:'geojson',
+      data:mergeFeatureCollections(visibleOverviewAssets()),
+      generateId: true
+    });
     this.map.addLayer({
       id:'buildings-fill',
       type:'fill-extrusion',
@@ -1468,7 +1668,12 @@ class MapLibreRenderer {
         'fill-extrusion-color':[
           'case',
           ['==',['get','__asset_id'],String(state.selected?.item.id??'')],
-          '#f2ae49','#aeb9c6'
+          '#f2ae49',
+          ['==',['get','__asset_id'],String(state.hoveredAssetId??'')],
+          '#5ee6b8',
+          ['boolean', ['feature-state', 'hover'], false],
+          '#5ee6b8',
+          '#aeb9c6'
         ],
         'fill-extrusion-opacity':.88,
         'fill-extrusion-base':['coalesce',['get','base_z'],0],
@@ -1711,6 +1916,7 @@ class MapLibreRenderer {
   async enterGlb(assets=detailAssets()){
     this.clearDetail();
     this.refreshOverviewVisibility();
+    if(!assets.length)return;
     const loadToken=this.detailLoadToken;
     const results=await Promise.allSettled(
       assets.map(asset=>this.installDetail(asset,loadToken))
@@ -1780,8 +1986,9 @@ class MapLibreRenderer {
   }
 
   async rebuildRepresentation(){
-    this.update();
     if(state.representation==='glb')await this.enterGlb();
+    else this.clearDetail();
+    this.update();
     this.map?.triggerRepaint();
   }
   update(){
@@ -1793,8 +2000,14 @@ class MapLibreRenderer {
   updateSelection(){
     if(state.gisRepresentation==='lod1_3'&&this.map?.getLayer('buildings-fill')){
       this.map.setPaintProperty('buildings-fill','fill-extrusion-color',[
-        'case',['==',['get','__asset_id'],String(state.selected?.item.id??'')],
-        '#f2ae49','#aeb9c6'
+        'case',
+        ['==',['get','__asset_id'],String(state.selected?.item.id??'')],
+        '#f2ae49',
+        ['==',['get','__asset_id'],String(state.hoveredAssetId??'')],
+        '#5ee6b8',
+        ['boolean', ['feature-state', 'hover'], false],
+        '#5ee6b8',
+        '#aeb9c6'
       ]);
     }
   }
@@ -1805,7 +2018,12 @@ class MapLibreRenderer {
     const [lon,lat]=datasetCenter();
     this.map?.easeTo({center:[lon,lat],zoom:16.5,pitch:55,bearing:0,duration:400});
   }
-  destroy(){this.map?.remove();this.map=null;this.container.replaceChildren();}
+  destroy(){
+    hidePartTooltip();
+    this.map?.remove();
+    this.map=null;
+    this.container.replaceChildren();
+  }
 }
 
 function cesiumGlbModelMatrix(item, placement, center) {
@@ -1867,21 +2085,33 @@ class CesiumRenderer {
     const fc=mergeFeatureCollections(visibleOverviewAssets());
     for(const f of fc.features||[]){
       const p=f.properties||{};
+      const selected = state.selected &&
+        String(p.__asset_id) === String(state.selected.item.id);
       const polygons=f.geometry?.type==='Polygon'?[f.geometry.coordinates]:f.geometry?.type==='MultiPolygon'?f.geometry.coordinates:[];
       for(const poly of polygons){
         if(!poly?.[0]?.length)continue;
         const outer=poly[0];
+        const holes=poly.slice(1).map(h=>new Cesium.PolygonHierarchy(
+          Cesium.Cartesian3.fromDegreesArray(h.flatMap(c=>[c[0],c[1]]))
+        ));
+        const hierarchy=new Cesium.PolygonHierarchy(
+          Cesium.Cartesian3.fromDegreesArray(outer.flatMap(c=>[c[0],c[1]])),
+          holes
+        );
         const entity=this.viewer.entities.add({
           name:p.__asset_name||'Building',
           polygon:{
-            hierarchy:new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(outer.flatMap(c=>[c[0],c[1]]))),
+            hierarchy,
             height:Number(p.base_z||0),
             extrudedHeight:Number(p.top_z??p.height??0),
-            material:Cesium.Color.fromCssColorString('#aeb9c6').withAlpha(.88),
+            material:Cesium.Color.fromCssColorString(selected?'#f2ae49':'#aeb9c6').withAlpha(.88),
             outline:true,
             outlineColor:Cesium.Color.DARKGRAY
           },
-          properties:{assetId:String(p.__asset_id||'')}
+          properties:{
+            assetId:String(p.__asset_id||''),
+            partProperties: p
+          }
         });
         this.entities.push(entity);
       }
@@ -1919,6 +2149,56 @@ class CesiumRenderer {
         if(asset)showAssetCard(asset);
       }
     },Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    let hoveredEntity = null;
+    let prevMaterial = null;
+    this.viewer.screenSpaceEventHandler.setInputAction(m => {
+      const picked = this.viewer.scene.pick(m.endPosition);
+      if (Cesium.defined(picked) && picked.id && picked.id.properties?.partProperties) {
+        const ent = picked.id;
+        const partProps = ent.properties.partProperties.getValue();
+        const isSingle = isSinglePrecinct(partProps);
+
+        if (isSingle) {
+          if (hoveredEntity && hoveredEntity.polygon) {
+            hoveredEntity.polygon.material = prevMaterial;
+            hoveredEntity = null;
+            prevMaterial = null;
+          }
+          const aId = String(partProps.__asset_id || '');
+          if (state.hoveredAssetId !== aId) {
+            state.hoveredAssetId = aId;
+            this.updateSelection();
+          }
+          showPartTooltip(partProps, m.endPosition.x, m.endPosition.y, true);
+        } else {
+          if (state.hoveredAssetId) {
+            state.hoveredAssetId = null;
+            this.updateSelection();
+          }
+          if (hoveredEntity !== ent) {
+            if (hoveredEntity && hoveredEntity.polygon) {
+              hoveredEntity.polygon.material = prevMaterial;
+            }
+            hoveredEntity = ent;
+            prevMaterial = ent.polygon.material;
+            ent.polygon.material = Cesium.Color.fromCssColorString('#5ee6b8').withAlpha(0.9);
+          }
+          showPartTooltip(partProps, m.endPosition.x, m.endPosition.y, false);
+        }
+      } else {
+        if (state.hoveredAssetId) {
+          state.hoveredAssetId = null;
+          this.updateSelection();
+        }
+        if (hoveredEntity && hoveredEntity.polygon) {
+          hoveredEntity.polygon.material = prevMaterial;
+          hoveredEntity = null;
+          prevMaterial = null;
+        }
+        hidePartTooltip();
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
   }
 
   async init(){
@@ -1956,6 +2236,7 @@ class CesiumRenderer {
   async enterGlb(assets=detailAssets()){
     this.clearDetail();
     await this.rebuildOverview();
+    if(!assets.length)return;
     const results=await Promise.allSettled(assets.map(asset=>this.addGlbAsset(asset)));
     const loaded=results.filter(result=>result.status==='fulfilled').length;
     if(!loaded)throw results.find(result=>result.status==='rejected')?.reason || new Error('No GLB model could be loaded');
@@ -1968,17 +2249,34 @@ class CesiumRenderer {
   }
   selectAsset(){this.updateSelection();}
   leaveGlb(){ this.clearDetail();this.rebuildOverview(); }
-  updateSelection(){}
+  updateSelection(){
+    const selId = state.selected ? String(state.selected.item.id) : null;
+    const hovId = state.hoveredAssetId ? String(state.hoveredAssetId) : null;
+    for(const entity of this.entities){
+      const aId = entity.properties?.assetId?.getValue?.();
+      const isSel = selId && aId === selId;
+      const isHov = hovId && aId === hovId;
+      if(entity.polygon){
+        const color = isSel ? '#f2ae49' : (isHov ? '#5ee6b8' : '#aeb9c6');
+        entity.polygon.material = Cesium.Color.fromCssColorString(color).withAlpha(.88);
+      }
+    }
+  }
   update(){}
   async rebuild(){await this.rebuildOverview();}
   reset(){
     if(!this.viewer)return;
-    const [lon,lat]=datasetCenter();
-    const center=Cesium.Cartesian3.fromDegrees(lon,lat,18);
-    this.viewer.camera.lookAt(center,new Cesium.HeadingPitchRange(0,Cesium.Math.toRadians(-35),400));
-    this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    if(this.entities.length){
+      this.viewer.zoomTo(this.entities, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-35), 0));
+    } else {
+      const [lon,lat]=datasetCenter();
+      const center=Cesium.Cartesian3.fromDegrees(lon,lat,18);
+      this.viewer.camera.lookAt(center,new Cesium.HeadingPitchRange(0,Cesium.Math.toRadians(-35),400));
+      this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
   }
   destroy(){
+    hidePartTooltip();
     if(this.viewer&&!this.viewer.isDestroyed())this.viewer.destroy();
     this.viewer=null;this.container.replaceChildren();
   }
@@ -2031,7 +2329,13 @@ async function refreshRendererRepresentation(){
   try{
     if(state.engine==='maplibre')await state.renderer.rebuildRepresentation();
     else if(state.engine==='deck')state.renderer.update();
-    else if(state.engine==='cesium')await state.renderer.rebuildOverview();
+    else if(state.engine==='cesium'){
+      if(state.representation==='glb')await state.renderer.enterGlb();
+      else await state.renderer.rebuildOverview();
+    }
+    if(!state.items.length){
+      state.renderer.clearDetail?.();
+    }
   }catch(error){
     console.error('Representation refresh failed',error);
     setStatus(`Representation refresh failed: ${errorMessage(error)}`);

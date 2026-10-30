@@ -48,10 +48,10 @@ without claiming full LOD2.2 conformance
 
 ## OGC LOD 2.0 (CityJSON v1.1 & CityGML v2.0)
 
-ARCA provides standards-conformant OGC LOD 2.0 representations:
+ARCA provides export profiles compatible with OGC LOD 2.0 structures:
 
 - **CityJSON (v1.1)**: Stored as `building.city.json`, featuring topological vertex de-duplication, integer millimeter coordinate quantization via an affine transform (`scale` and `translate`), and semantic surface classification (`RoofSurface`, `WallSurface`, `GroundSurface`, `OuterFloorSurface`).
-- **CityGML (v2.0)**: Stored as `building.gml`, formatted in compliant GML 3.1.1 XML featuring topological linear ring loop closures and semantic `<bldg:boundedBy>` boundary surface elements.
+- **CityGML (v2.0)**: Stored as `building.gml`, formatted in GML 3.1.1 XML featuring topological linear ring loop closures and semantic `<bldg:boundedBy>` boundary surface elements.
 
 Unlike generalized LOD1.3 mass plateaus, LOD 2.0 retains individual exterior boundary facets, distinct sloped/flat roof geometry, and exterior structural envelopes while excluding internal partitions and sub-element fittings.
 

@@ -97,7 +97,7 @@ def triangulate_polygon_3d(q: np.ndarray) -> list[np.ndarray]:
         if result:
             return result
     except Exception:
-        # ponytail: fallback to naive triangle fan if Shapely triangulation fails on degenerate geometry
+        # Fallback to naive triangle fan if Shapely triangulation fails on degenerate geometry
         pass
 
     return [np.array([q[0], q[j], q[j + 1]], dtype=float) for j in range(1, n_pts - 1)]

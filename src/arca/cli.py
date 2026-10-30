@@ -39,8 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--workspace", type=Path, default=None, help="Data & viewer storage folder")
     s.add_argument("--no-browser", action="store_true", help="Do not open browser automatically")
 
-    r = sub.add_parser("run", aliases=["convert"], help="Convert IFC/SKP via CLI")
-    r.add_argument("input", type=Path, help=".ifc or .skp file or folder")
+    r = sub.add_parser("run", aliases=["convert"], help="Convert IFC/SKP/ATAP via CLI")
+    r.add_argument("input", type=Path, help=".ifc, .skp, or ATAP .geojson file or folder")
     r.add_argument("--out", type=Path, default=Path("./output"), help="Output directory")
     r.add_argument("--generate", choices=("all", "lod1.3", "glb", "cityjson", "citygml"), default="all")
     r.add_argument("--anchor-lon", type=float, default=None)
@@ -49,12 +49,15 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--rotate", type=float, default=0.0)
     r.add_argument("--source-unit", choices=("auto", "m", "mm", "cm"), default="auto")
     r.add_argument("--metadata", type=Path, default=None, help="Path to companion metadata JSON / GeoJSON file")
+    r.add_argument("--viewer-root", type=Path, default=None, help="Sync output into viewer workspace root")
+    r.add_argument("--placement-mode", choices=("item_center", "native"), default=None, help="Viewer placement mode")
+    r.add_argument("--merge", action="store_true", default=False, help="Merge multi-building ATAP dataset into single precinct instead of splitting")
     r.add_argument("--events", choices=("human", "jsonl"), default="human")
     r.add_argument("--cancel-file", type=Path)
     r.add_argument("--quiet", action="store_true")
 
-    i = sub.add_parser("inspect", help="Inspect georeferencing metadata of IFC/SKP file")
-    i.add_argument("file", type=Path, help="IFC or SKP model file")
+    i = sub.add_parser("inspect", help="Inspect georeferencing metadata of IFC/SKP/ATAP file")
+    i.add_argument("file", type=Path, help="IFC, SKP, or ATAP GeoJSON model file")
     i.add_argument("--metadata", type=Path, default=None, help="Path to companion metadata JSON / GeoJSON file")
 
     return p
@@ -91,6 +94,12 @@ def _run(args: argparse.Namespace) -> int:
         cli_args.extend(["--crs", args.crs])
     if getattr(args, "metadata", None):
         cli_args.extend(["--metadata", str(args.metadata)])
+    if getattr(args, "viewer_root", None):
+        cli_args.extend(["--viewer-root", str(args.viewer_root)])
+    if getattr(args, "placement_mode", None):
+        cli_args.extend(["--placement-mode", str(args.placement_mode)])
+    if getattr(args, "merge", False):
+        cli_args.append("--merge")
 
     parsed_cli = sub_parser.parse_args(cli_args)
     if cancel_flag and cancel_flag():

@@ -29,12 +29,20 @@ except ImportError:
 
 
 def detect_input_format(path: Path) -> str:
-    """Detect whether input file is SketchUp (.skp) or IFC (.ifc)."""
+    """Detect whether input file is SketchUp (.skp), IFC (.ifc), or ATAP GeoJSON."""
     ext = path.suffix.lower()
     if ext == ".skp":
         return "SKP"
     if ext == ".ifc":
         return "IFC"
+    if ext in {".geojson", ".json"}:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                chunk = f.read(2048)
+                if '"atap"' in chunk or '"base_elevation_m"' in chunk or '"part_id"' in chunk:
+                    return "ATAP"
+        except Exception:
+            pass
     try:
         with open(path, "rb") as f:
             header = f.read(512)

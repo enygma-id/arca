@@ -32,6 +32,8 @@ from .. import __version__
 # Safety constants for filesystem and upload bounds (P-01 & P-02)
 DEFAULT_MAX_UPLOAD_BYTES = 4 * 1024 * 1024 * 1024  # 4 GiB default limit
 ALLOWED_DOWNLOAD_FILES = {
+    "bundle.zip",
+    "all.zip",
     "model_glb.zip",
     "model.zip",
     "building.geojson",
@@ -377,7 +379,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
         return _static_dir()
 
     def log_message(self, format, *args):
-        sys.stderr.write(f"[{time.strftime('%H:%M:%S')}] {self.address_string()} - {format % args}\n")
+        addr = self.address_string() if hasattr(self, "client_address") else "127.0.0.1"
+        sys.stderr.write(f"[{time.strftime('%H:%M:%S')}] {addr} - {format % args}\n")
 
     def send_json(self, data, status=200):
         body = json.dumps(data, indent=2).encode("utf-8")
@@ -491,7 +494,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 self.send_error(400, "Missing dataset or file parameter")
                 return
 
-            if not is_safe_dataset_id(dataset):
+            if not is_safe_dataset_id(dataset.lower()):
                 self.send_error(400, "Invalid dataset parameter")
                 return
 
@@ -500,6 +503,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 return
 
             dataset_dir = safe_resolve_child(self.workspace / "outputs", dataset)
+            if dataset_dir is None or not dataset_dir.exists() or not dataset_dir.is_dir() or dataset_dir.is_symlink():
+                dataset_dir = safe_resolve_child(self.workspace / "outputs", dataset.lower())
             if dataset_dir is None or not dataset_dir.exists() or not dataset_dir.is_dir() or dataset_dir.is_symlink():
                 self.send_error(404, f"Dataset not found: {dataset}")
                 return
@@ -526,6 +531,86 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                         pass
 
             clean_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', building_name).strip("._") if building_name else dataset
+
+            if safe_filename in ("bundle.zip", "all.zip"):
+                buf = io.BytesIO()
+                has_any = False
+                with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    for f_name in ("building.geojson", "building.city.json", "building.gml", "metadata.json"):
+                        f_path = safe_resolve_child(dataset_dir, f_name)
+                        if f_path and f_path.exists() and not f_path.is_symlink():
+                            zf.write(f_path, arcname=f_name)
+                            has_any = True
+
+                    glb_file = safe_resolve_child(dataset_dir / "render", "model.glb")
+                    if glb_file is None or not glb_file.exists() or glb_file.is_symlink():
+                        glb_file = safe_resolve_child(dataset_dir, "model.glb")
+                    if glb_file and glb_file.exists() and not glb_file.is_symlink():
+                        zf.write(glb_file, arcname="render/model.glb")
+                        has_any = True
+
+                    geojson_file = safe_resolve_child(dataset_dir / "render", "model.geojson")
+                    if geojson_file is None or not geojson_file.exists() or geojson_file.is_symlink():
+                        geojson_file = safe_resolve_child(dataset_dir, "model.geojson")
+                    if geojson_file and geojson_file.exists() and not geojson_file.is_symlink():
+                        zf.write(geojson_file, arcname="render/model.geojson")
+                        has_any = True
+                    elif glb_file and glb_file.exists():
+                        meta_file = dataset_dir / "metadata.json"
+                        if meta_file.exists() and not meta_file.is_symlink():
+                            try:
+                                with open(meta_file, "r", encoding="utf-8") as mf:
+                                    meta = json.load(mf)
+                                anchor = meta.get("anchor", {})
+                                georef = meta.get("georeference", {})
+                                synth = {
+                                    "type": "FeatureCollection",
+                                    "features": [{
+                                        "type": "Feature",
+                                        "geometry": {
+                                            "type": "Point",
+                                            "coordinates": [
+                                                anchor.get("lon", 0.0),
+                                                anchor.get("lat", 0.0),
+                                                round(float(georef.get("origin_orthogonal_height", 0.0)), 3),
+                                            ],
+                                        },
+                                        "properties": {
+                                            "id": dataset,
+                                            "name": building_name or dataset,
+                                            "model_url": "./model.glb",
+                                            "scale": 1.0,
+                                            "heading": round(math.degrees(float(georef.get("rotation_rad", 0.0))), 6) if "rotation_rad" in georef else 0.0,
+                                            "pitch": 0.0,
+                                            "roll": 0.0,
+                                            "height_m": round(float(meta.get("summary", {}).get("max_height_m", 0.0)), 3),
+                                            "storeys": meta.get("plateau_count", 0),
+                                            "crs": georef.get("crs_epsg") or "EPSG:4326",
+                                        },
+                                    }],
+                                }
+                                zf.writestr("render/model.geojson", json.dumps(synth, indent=2))
+                                has_any = True
+                            except Exception:
+                                pass
+
+                    buildings_dir = safe_resolve_child(dataset_dir, "buildings")
+                    if buildings_dir and buildings_dir.is_dir() and not buildings_dir.is_symlink():
+                        for root, _, files_in_dir in os.walk(buildings_dir):
+                            for fn in files_in_dir:
+                                f_full = Path(root) / fn
+                                if f_full.is_file() and not f_full.is_symlink():
+                                    arc_rel = f_full.relative_to(dataset_dir)
+                                    zf.write(f_full, arcname=str(arc_rel))
+                                    has_any = True
+
+                if not has_any:
+                    self.send_error(404, f"No files found to bundle for dataset {dataset}")
+                    return
+
+                download_name = f"{clean_name}_bundle.zip"
+                self.send_bytes_response(buf.getvalue(), mime_type="application/zip", download_name=download_name)
+                return
 
             if safe_filename in ("model_glb.zip", "model.zip"):
                 glb_file = safe_resolve_child(dataset_dir / "render", "model.glb")
@@ -752,6 +837,7 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                         "has_glb": glb_file.exists(),
                         "has_cityjson": cityjson_file.exists(),
                         "has_citygml": citygml_file.exists(),
+                        "has_bundle": any([geojson_file.exists(), glb_file.exists(), cityjson_file.exists(), citygml_file.exists()]),
                         "mtime": d.stat().st_mtime,
                         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(d.stat().st_mtime)),
                     }
@@ -789,35 +875,62 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-        if not dataset_id or not is_safe_dataset_id(str(dataset_id)):
+        raw_id = str(dataset_id or "").strip()
+        norm_id = raw_id.lower()
+        if not raw_id or not is_safe_dataset_id(norm_id):
             self.send_json({"success": False, "error": "Invalid or missing dataset parameter"}, status=400)
             return
 
-        dataset_id = str(dataset_id)
         deleted_items = []
+        target_ids = {raw_id, norm_id}
 
         # 1. Remove from workspace/outputs (immediate child, not root, non-symlink dir)
         outputs_root = (self.workspace / "outputs").resolve(strict=False)
-        out_dir = outputs_root / dataset_id
-        if out_dir.parent == outputs_root and out_dir != outputs_root and not out_dir.is_symlink() and out_dir.is_dir():
-            shutil.rmtree(out_dir, ignore_errors=True)
-            deleted_items.append("outputs")
+        for tid in target_ids:
+            out_dir = safe_resolve_child(outputs_root, tid)
+            if out_dir and out_dir.exists() and out_dir != outputs_root and not out_dir.is_symlink() and out_dir.is_dir():
+                shutil.rmtree(out_dir, ignore_errors=True)
+                if "outputs" not in deleted_items:
+                    deleted_items.append("outputs")
 
         # 2. Remove from workspace/viewer/multilod (immediate child, not root, non-symlink dir)
         multilod_root = (self.workspace / "viewer" / "multilod").resolve(strict=False)
-        viewer_lod = multilod_root / dataset_id
-        if viewer_lod.parent == multilod_root and viewer_lod != multilod_root and not viewer_lod.is_symlink() and viewer_lod.is_dir():
-            shutil.rmtree(viewer_lod, ignore_errors=True)
-            deleted_items.append("viewer_multilod")
+        for tid in target_ids:
+            viewer_lod = safe_resolve_child(multilod_root, tid)
+            if viewer_lod and viewer_lod.exists() and viewer_lod != multilod_root and not viewer_lod.is_symlink() and viewer_lod.is_dir():
+                shutil.rmtree(viewer_lod, ignore_errors=True)
+                if "viewer_multilod" not in deleted_items:
+                    deleted_items.append("viewer_multilod")
 
-        # 3. Remove from workspace/viewer/data.json using atomic write (ponytail: atomic replace via tempfile in same dir)
+        # 3. Remove from workspace/viewer/data.json using atomic write (atomic replace via tempfile in same dir)
         data_json_path = self.workspace / "viewer" / "data.json"
         if data_json_path.exists() and not data_json_path.is_symlink() and data_json_path.is_file():
             try:
                 with open(data_json_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 items = data.get("items", [])
-                new_items = [it for it in items if str(it.get("id")) != dataset_id]
+
+                def should_keep(it):
+                    it_id = str(it.get("id", "")).strip()
+                    it_name = str(it.get("name", "")).strip()
+                    if it_id in target_ids or it_id.lower() in target_ids:
+                        return False
+                    if it_name in target_ids or it_name.lower() in target_ids:
+                        return False
+                    for tid in target_ids:
+                        tid_lower = tid.lower()
+                        if it_id.startswith(f"{tid}_") or it_id.lower().startswith(f"{tid_lower}_"):
+                            return False
+                        detail_glb = str(it.get("detail", {}).get("glb", ""))
+                        if f"/multilod/{tid}/" in detail_glb or f"/multilod/{tid_lower}/" in detail_glb:
+                            return False
+                        for geo_val in it.get("geojson", {}).values():
+                            geo_str = str(geo_val)
+                            if f"/multilod/{tid}/" in geo_str or f"/multilod/{tid_lower}/" in geo_str:
+                                return False
+                    return True
+
+                new_items = [it for it in items if should_keep(it)]
                 if len(new_items) != len(items):
                     data["items"] = new_items
                     data_json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -831,11 +944,9 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-
-
         self.send_json({
             "success": True,
-            "deleted": dataset_id,
+            "deleted": raw_id,
             "actions": deleted_items
         })
 
@@ -904,8 +1015,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             tmp_path = uploaded_file["path"]
 
             ext = Path(original_name).suffix.lower()
-            if ext not in {".ifc", ".skp"}:
-                self.send_json({"success": False, "error": f"Format '{ext}' not supported. Must be .ifc or .skp"}, status=400)
+            if ext not in {".ifc", ".skp", ".geojson", ".json"}:
+                self.send_json({"success": False, "error": f"Format '{ext}' not supported. Must be .ifc, .skp, or .geojson"}, status=400)
                 return
 
             tmp_meta_path = None
@@ -996,8 +1107,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             src_file_path = uploaded_file["path"]
 
             ext = Path(original_name).suffix.lower()
-            if ext not in {".ifc", ".skp"}:
-                self.send_json({"success": False, "error": f"Format '{ext}' not supported. Must be .ifc or .skp"}, status=400)
+            if ext not in {".ifc", ".skp", ".geojson", ".json"}:
+                self.send_json({"success": False, "error": f"Format '{ext}' not supported. Must be .ifc, .skp, or .geojson"}, status=400)
                 return
 
             from .. import engine
@@ -1068,6 +1179,9 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                 args_list.extend(["--crs", crs])
             if saved_meta:
                 args_list.extend(["--metadata", str(saved_meta)])
+            granularity = fields.get("granularity", "split").strip().lower()
+            if granularity == "merge":
+                args_list.append("--merge")
 
             args = parser.parse_args(args_list)
 
@@ -1158,6 +1272,12 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
                         "url": f"/api/download?dataset={dataset_id}&file=building.gml&name={clean_b_name}",
                         "size": citygml_file.stat().st_size,
                         "name": f"{clean_b_name}.gml",
+                    }
+                if files_info:
+                    files_info["bundle"] = {
+                        "url": f"/api/download?dataset={dataset_id}&file=bundle.zip&name={clean_b_name}",
+                        "size": sum(f.get("size", 0) for f in files_info.values()),
+                        "name": f"{clean_b_name}_bundle.zip",
                     }
 
                 _job_emit(job, {

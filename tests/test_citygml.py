@@ -85,3 +85,38 @@ def test_citygml_preprocess_integration():
 
         assert meta["geometry"]["citygml"] == "building.gml"
         assert meta["storage"]["citygml_bytes"] > 0
+
+
+def test_citygml_special_characters_escaping():
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = Path(td)
+        special_name = "Building A & B <North-Tower> 'Phase 1'"
+        writer = CityGMLWriter(out_dir, "test_special", building_name=special_name)
+
+        tri = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ])
+        writer.add_triangle("WallSurface", tri, object_id=1)
+        writer.finalize(anchor_lon=106.8, anchor_lat=-6.2)
+
+        gml_path = out_dir / "building.gml"
+        content = gml_path.read_text(encoding="utf-8")
+
+        # Must be well-formed XML and not raise ParseError
+        tree = ET.fromstring(content)
+        assert tree.tag.endswith("CityModel")
+
+        # Verify parsed name matches original text exactly
+        namespaces = {
+            "core": "http://www.opengis.net/citygml/2.0",
+            "bldg": "http://www.opengis.net/citygml/building/2.0",
+            "gml": "http://www.opengis.net/gml",
+        }
+        bldg = tree.find(".//bldg:Building", namespaces)
+        assert bldg is not None
+        name_elem = bldg.find("gml:name", namespaces)
+        assert name_elem is not None
+        assert name_elem.text == special_name
+

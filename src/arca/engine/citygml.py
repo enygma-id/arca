@@ -5,6 +5,7 @@ import math
 import re
 from pathlib import Path
 from typing import Optional
+from xml.sax.saxutils import escape as xml_escape
 
 import numpy as np
 
@@ -161,7 +162,7 @@ class CityGMLWriter:
             f.write('  <core:cityObjectMember>\n')
             f.write(f'    <bldg:Building gml:id="bldg_{safe_bldg_id}">\n')
             if self.building_name:
-                f.write(f'      <gml:name>{self.building_name}</gml:name>\n')
+                f.write(f'      <gml:name>{xml_escape(self.building_name)}</gml:name>\n')
             f.write(
                 f'      <bldg:measuredHeight uom="urn:ogc:def:uom:OGC:1.0:metre">{measured_height:.2f}</bldg:measuredHeight>\n'
             )

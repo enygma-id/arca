@@ -17,14 +17,17 @@ All notable project changes should be documented here.
 - Building-name-based export filenames for GeoJSON and GLB downloads.
 - MapLibre GL JS 3D GLB rendering support via custom Three.js WebGL layer alongside Deck.gl and CesiumJS.
 - Sample datasets organized under `samples/arca-sample-area-01/` (IFC) and `samples/arca-sample-area-02/` (SKP) with dataset documentation, CC BY 4.0 data licensing, and SHA-256 integrity manifests.
-- Comprehensive 3D Web Viewer Integration Guide (`docs/viewer-guide.md`) detailing standalone implementations for MapLibre GL JS, Deck.gl, and CesiumJS.
+- Comprehensive 3D Web Viewer Integration Guide (`docs/viewer-guide.md`) detailing standalone implementations for MapLibre GL JS, Deck.gl, and CesiumJS, including modular per-building filtering and GLB georeferencing.
 - GitHub Actions continuous integration workflow (`.github/workflows/ci.yml`) testing across Ubuntu, Windows, and macOS on Python 3.10 and 3.12 with uv and pip.
 - GitHub issue templates (`.github/ISSUE_TEMPLATE/`) for bug reports, research proposals, and blank issue configuration.
 - Repository `.gitattributes` for line-ending normalization (LF) and explicit binary asset tracking.
+- ATAP 2.5D GeoJSON ingestion engine (`arca.engine.atap`) supporting discrete modular building packages (`outputs/<dataset>/buildings/<id>/`) and unified single-precinct massing via `--merge`.
+- Unified single-precinct hover inspection and precinct-level HUD metrics across MapLibre GL JS, Deck.gl, and CesiumJS renderers.
 
 ### Fixed
 
 - SKP model unit inspection returns `auto` so intermediate millimeter-scaled IFC export is properly converted to meters without 1000x scale blowup.
+- Dataset deletion cascade in `/api/delete` and viewer catalog synchronization to prune `outputs/`, `viewer/multilod/`, and all exact/split entries in `data.json` without rendering errors on empty states.
 
 ## [0.2.0] - 2026-09-18
 

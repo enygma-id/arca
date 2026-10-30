@@ -24,7 +24,7 @@ Legal entity: **PT Enygma Solusi Negeri**
 
 ## Overview
 
-ARCA converts IFC and SKP building models into lightweight, **GIS-native representations**:
+ARCA converts **IFC**, **SKP**, and **ATAP 2.5D GeoJSON** building models into lightweight, **GIS-native representations**:
 a **LOD 1.3 GeoJSON** and a **georeferenced GLB** (full architectural mesh, glTF 2.0),
 with direct export support for **CityJSON v1.1** and **CityGML v2.0 (LOD 2.0)**.
 All outputs share a common WGS84 anchor derived from the source model's embedded georeferencing,
@@ -146,8 +146,14 @@ Contributors can use the same commands on Windows, Linux, and macOS without acti
 uv sync --extra dev
 uv run arca serve
 
-# Convert a BIM model (IFC or SKP) directly via CLI
+# Convert a BIM or massing model (IFC, SKP, or ATAP GeoJSON) directly via CLI
 uv run arca run input_model.ifc --out outputs/
+
+# Ingest ATAP 2.5D GeoJSON (splits multi-building datasets into modular units by default)
+uv run arca run atap_massing.geojson --out outputs/
+
+# Merge multi-building ATAP dataset into a unified single precinct
+uv run arca run atap_massing.geojson --merge --out outputs/
 
 # Export specific formats (GeoJSON LOD 1.3, GLB, CityJSON, CityGML, or all)
 uv run arca run input_model.ifc --generate all --out outputs/
@@ -229,6 +235,7 @@ Spatial placement is treated as data, not as a viewer-only adjustment.
 
 ARCA automatically resolves authoritative georeferencing across multiple layers:
 - **IFC entities**: `IfcMapConversion` (Eastings, Northings, OrthogonalHeight, Rotation, Scale), `IfcProjectedCRS` (EPSG projection), and `IfcSite` coordinates;
+- **ATAP GeoJSON**: embedded WGS84 coordinates, UTM projections, part elevations (`base_elevation_m`, `top_elevation_m`), and building groupings;
 - **Companion Metadata JSON**: auto-discovered or explicitly supplied georeferencing metadata for IFC and SKP models;
 - **Manual WGS84 Anchor**: fallback user-specified anchor coordinates and rotation.
 
