@@ -2,7 +2,8 @@ cff-version: 1.2.0
 message: "If you use ARCA in research, publications, or software development, please cite this software."
 type: software
 title: "ARCA: Asset Representation Conversion Architecture"
-version: 0.3.0
+version: "0.3.0"
+doi: "10.5281/zenodo.23880147"
 
 authors:
   - family-names: "Karya"
