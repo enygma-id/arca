@@ -22,8 +22,8 @@ ARCA generates CityJSON (v1.1) and CityGML (v2.0) files structured for compatibi
 
 However:
 - Syntactic generation (producing well-formed XML and JSON) does not constitute formal OGC Schema Conformance certification.
-- Outputs have not been subjected to the official OGC Compliance Testing Program (CITE/ETS) or full XML Schema (XSD) validation suites.
-- Available tests verify structural validity and parser ingest, but do not imply exhaustive schema compliance across all edge cases of the OGC standards.
+- Representative CityJSON v1.1 output was checked with `cjval 0.10.0`, and representative CityGML v2.0 outputs were checked against the pinned OGC XML Schema (see [`docs/ogc-validation.md`](docs/ogc-validation.md)).
+- ARCA has **not** undergone OGC CITE/ETS certification or exhaustive validation across every input model and geometric edge case. Schema validity does not prove solid/manifold geometry validity.
 - Users requiring strict compliance guarantees should validate output files against official OGC schemas before ingestion into formal municipal SDI workflows.
 
 ## Enhanced LOD1.3 Is Not LOD2.2
