@@ -27,8 +27,9 @@ Legal entity: **PT Enygma Solusi Negeri**
 ARCA converts **IFC**, **SKP**, and **ATAP 2.5D GeoJSON** building models into lightweight, **GIS-native representations**:
 a **LOD 1.3 GeoJSON** and a **georeferenced GLB** (full architectural mesh, glTF 2.0),
 with direct export support for **CityJSON v1.1** and **CityGML v2.0 (LOD 2.0)**.
-All outputs share a common WGS84 anchor derived from the source model's embedded georeferencing,
-so they overlay precisely on any GIS map or 3D city pipeline without manual alignment.
+When authoritative georeferencing or a user-provided anchor is available, ARCA
+places outputs in a corresponding projected spatial reference. Without a known
+reference, local-coordinate exports are not labeled as geographic coordinates.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/overview/arca-overview-dark.png">
