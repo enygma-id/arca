@@ -26,3 +26,8 @@ keywords:
   - "spatial-data"
 
 license: "AGPL-3.0-only"
+
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23880146
+    description: "Zenodo concept DOI for all ARCA releases"
