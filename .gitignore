@@ -26,6 +26,7 @@ dist/
 .env.*
 
 # Local outputs & workspaces
+.cache/
 outputs/
 arca_workspace/
 tmp/

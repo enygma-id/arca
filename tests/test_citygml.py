@@ -120,3 +120,116 @@ def test_citygml_special_characters_escaping():
         assert name_elem is not None
         assert name_elem.text == special_name
 
+
+def test_citygml_xml_10_safety_invalid_codepoints_rejected():
+    """F-01: Reject invalid XML 1.0 codepoints before opening the output file."""
+    import pytest
+
+    invalid_names = [
+        "Mall\x00Null",
+        "Tower\x01Control",
+        "Building\x08Backspace",
+        "Store\x0bVerticalTab",
+        f"Surrogate{chr(0xD800)}Test",
+    ]
+
+    tri = np.array([
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+    ])
+
+    for inv in invalid_names:
+        with tempfile.TemporaryDirectory() as td:
+            out_dir = Path(td)
+            writer = CityGMLWriter(out_dir, "test_invalid", building_name=inv)
+            writer.add_triangle("WallSurface", tri, object_id=1)
+
+            with pytest.raises(ValueError, match="Invalid XML 1.0 character"):
+                writer.finalize(anchor_lon=106.8, anchor_lat=-6.2)
+
+            # Ensure no half-written or corrupt file remains
+            gml_path = out_dir / "building.gml"
+            assert not gml_path.exists(), f"Output file should not be created for invalid name: {inv!r}"
+
+
+def test_citygml_xml_10_safety_valid_non_ascii_roundtrip():
+    """F-01: Valid non-ASCII UTF-8 characters must survive round-trip unchanged."""
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = Path(td)
+        valid_name = "Menara Bâtiment 🏢 (Gedung Sate 日本語)"
+        writer = CityGMLWriter(out_dir, "test_utf8", building_name=valid_name)
+
+        tri = np.array([
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ])
+        writer.add_triangle("RoofSurface", tri, object_id=1)
+        res = writer.finalize(anchor_lon=106.8, anchor_lat=-6.2)
+        assert res is not None
+
+        gml_path = out_dir / "building.gml"
+        assert gml_path.exists()
+        content = gml_path.read_text(encoding="utf-8")
+
+        tree = ET.fromstring(content)
+        namespaces = {
+            "core": "http://www.opengis.net/citygml/2.0",
+            "bldg": "http://www.opengis.net/citygml/building/2.0",
+            "gml": "http://www.opengis.net/gml",
+        }
+        name_elem = tree.find(".//bldg:Building/gml:name", namespaces)
+        assert name_elem is not None
+        assert name_elem.text == valid_name
+
+
+def test_citygml_crs_truthfulness_local_coordinates_no_false_crs84():
+    """F-02: Zero-anchor / unknown georef must not falsely assert CRS84 for metric local coords."""
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = Path(td)
+        writer = CityGMLWriter(out_dir, "test_local", building_name="Local Building")
+
+        tri = np.array([
+            [100.0, 50.0, 0.0],
+            [120.0, 50.0, 0.0],
+            [110.0, 70.0, 15.0],
+        ])
+        writer.add_triangle("RoofSurface", tri, object_id=1)
+        res = writer.finalize(anchor_lon=0.0, anchor_lat=0.0, georef=None)
+        assert res is not None
+        assert res["srs_name"] is None
+
+        gml_path = out_dir / "building.gml"
+        content = gml_path.read_text(encoding="utf-8")
+
+        # Must NOT falsely claim CRS84 (which is geographic longitude/latitude in degrees)
+        assert "CRS84" not in content
+        assert "srsName" not in content
+
+        # Must still be well-formed XML
+        tree = ET.fromstring(content)
+        assert tree.tag.endswith("CityModel")
+
+
+def test_citygml_crs_truthfulness_known_epsg_retained():
+    """F-02: Known EPSG from georeferencing must be accurately asserted."""
+    with tempfile.TemporaryDirectory() as td:
+        out_dir = Path(td)
+        writer = CityGMLWriter(out_dir, "test_utm", building_name="UTM Building")
+
+        tri = np.array([
+            [0.0, 0.0, 0.0],
+            [10.0, 0.0, 0.0],
+            [5.0, 10.0, 10.0],
+        ])
+        writer.add_triangle("RoofSurface", tri, object_id=1)
+
+        # 1. From anchor lat/lon in Makassar (UTM zone 50S -> EPSG:32750)
+        res = writer.finalize(anchor_lon=119.4151, anchor_lat=-5.1493, georef=None)
+        assert res is not None
+        assert res["srs_name"] == "urn:ogc:def:crs:EPSG::32750"
+
+        content = (out_dir / "building.gml").read_text(encoding="utf-8")
+        assert 'srsName="urn:ogc:def:crs:EPSG::32750"' in content
+

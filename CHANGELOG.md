@@ -28,6 +28,9 @@ All notable project changes should be documented here.
 
 - SKP model unit inspection returns `auto` so intermediate millimeter-scaled IFC export is properly converted to meters without 1000x scale blowup.
 - Dataset deletion cascade in `/api/delete` and viewer catalog synchronization to prune `outputs/`, `viewer/multilod/`, and all exact/split entries in `data.json` without rendering errors on empty states.
+- CityGML 2.0 XML 1.0 codepoint validation rejecting non-printable characters and surrogates before file creation.
+- CityGML 2.0 and CityJSON 1.1 spatial reference honesty: unprojected local coordinates omit `srsName` instead of mislabeling metric offsets as geographic `CRS84`.
+- CityJSON 1.1 metadata schema conformance (`title`) verified against official OGC `cjval` validator.
 
 ## [0.2.0] - 2026-09-18
 

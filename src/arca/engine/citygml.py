@@ -11,6 +11,29 @@ import numpy as np
 
 from .georef import GeoreferenceContext, latlon_to_utm_wgs84
 
+
+def validate_xml_10_string(text: str, field_name: str = "text") -> None:
+    """Validate that text contains only legal XML 1.0 (Fifth Edition) characters.
+
+    Char ::= #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+    Rejects NUL bytes, ASCII control codes (except TAB, LF, CR), and isolated surrogates.
+    """
+    for ch in text:
+        cp = ord(ch)
+        if (
+            cp == 0x09
+            or cp == 0x0A
+            or cp == 0x0D
+            or (0x20 <= cp <= 0xD7FF)
+            or (0xE000 <= cp <= 0xFFFD)
+            or (0x10000 <= cp <= 0x10FFFF)
+        ):
+            continue
+        raise ValueError(
+            f"Invalid XML 1.0 character in {field_name}: codepoint U+{cp:04X} is not permitted."
+        )
+
+
 CITYGML_SEMANTIC_MAP = {
     "RoofSurface": "RoofSurface",
     "WallSurface": "WallSurface",
@@ -93,15 +116,27 @@ class CityGMLWriter:
         if not self.triangles:
             return None
 
-        # Resolve CRS
-        srs_name = "urn:ogc:def:crs:OGC:1.3:CRS84"
+        # F-01: Validate XML 1.0 strings before opening output file
+        if self.dataset:
+            validate_xml_10_string(self.dataset, "dataset")
+        if self.building_name:
+            validate_xml_10_string(self.building_name, "building_name")
+
+        # F-02: Resolve CRS; do not falsely assert CRS84 for unknown/local coordinates
+        srs_name: Optional[str] = None
         if georef and georef.crs_epsg:
             m = re.search(r"\d+", str(georef.crs_epsg))
+            if m:
+                srs_name = f"urn:ogc:def:crs:EPSG::{m.group(0)}"
+        elif georef and georef.target_crs:
+            m = re.search(r"\d+", str(georef.target_crs))
             if m:
                 srs_name = f"urn:ogc:def:crs:EPSG::{m.group(0)}"
         elif anchor_lat != 0.0 or anchor_lon != 0.0:
             utm_epsg, _, _, _ = latlon_to_utm_wgs84(anchor_lat, anchor_lon)
             srs_name = f"urn:ogc:def:crs:EPSG::{utm_epsg}"
+
+        srs_attr = f' srsName="{srs_name}"' if srs_name else ""
 
         g_min = np.array([np.inf, np.inf, np.inf], dtype=float)
         g_max = np.array([-np.inf, -np.inf, -np.inf], dtype=float)
@@ -153,7 +188,7 @@ class CityGMLWriter:
             )
             f.write(
                 f'  <gml:boundedBy>\n'
-                f'    <gml:Envelope srsName="{srs_name}">\n'
+                f'    <gml:Envelope{srs_attr}>\n'
                 f'      <gml:lowerCorner>{g_min[0]:.3f} {g_min[1]:.3f} {g_min[2]:.3f}</gml:lowerCorner>\n'
                 f'      <gml:upperCorner>{g_max[0]:.3f} {g_max[1]:.3f} {g_max[2]:.3f}</gml:upperCorner>\n'
                 f'    </gml:Envelope>\n'
@@ -174,7 +209,7 @@ class CityGMLWriter:
                 f.write('      <bldg:boundedBy>\n')
                 f.write(f'        <bldg:{sem_name} gml:id="{sem_name}_{safe_bldg_id}">\n')
                 f.write('          <bldg:lod2MultiSurface>\n')
-                f.write(f'            <gml:MultiSurface srsName="{srs_name}">\n')
+                f.write(f'            <gml:MultiSurface{srs_attr}>\n')
 
                 for p0, p1, p2 in tris:
                     poly_idx += 1
@@ -218,4 +253,5 @@ class CityGMLWriter:
             "surfaces_count": len(surfaces),
             "lod": "2.0",
             "measured_height": measured_height,
+            "srs_name": srs_name,
         }

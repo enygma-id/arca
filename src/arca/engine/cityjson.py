@@ -184,7 +184,7 @@ class CityJSONWriter:
             attributes["storeysAboveGround"] = storey_count
 
         metadata: dict = {
-            "datasetTitle": self.building_name,
+            "title": self.building_name,
             "geographicalExtent": [
                 round(float(g_min[0]), 3),
                 round(float(g_min[1]), 3),
