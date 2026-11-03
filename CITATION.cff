@@ -3,6 +3,8 @@ message: "If you use ARCA in research, publications, or software development, pl
 type: software
 title: "ARCA: Asset Representation Conversion Architecture"
 version: "0.3.0"
+date-released: "2026-11-02"
+abstract: "ARCA is an open-source BIM-to-GIS conversion engine for IFC, SketchUp (SKP), and ATAP 2.5D GeoJSON models. It generates lightweight GeoJSON LOD 1.3, detailed GLB (glTF 2.0), CityJSON 1.1, and CityGML 2.0 representations, with geometry generalization, semantic surfaces, and spatial referencing."
 doi: "10.5281/zenodo.23880147"
 
 authors:
@@ -31,4 +33,4 @@ license: "AGPL-3.0-only"
 identifiers:
   - type: doi
     value: "10.5281/zenodo.23880146"
-    description: "Zenodo concept DOI for all ARCA releases"
+    description: "Concept DOI for all ARCA versions."
