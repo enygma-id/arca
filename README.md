@@ -13,12 +13,14 @@
 </p>
 
 <p align="center">
+<strong>ARCA: Asset Representation Conversion Architecture</strong>
+</p>
+
+<p align="center">
   <a href="https://doi.org/10.5281/zenodo.23880146" title="TileO DOI (all versions)">
     <img src="https://zenodo.org/badge/1368304929.svg" alt="Zenodo DOI">
   </a>
 </p>
-
-**ARCA: Asset Representation Conversion Architecture**
 
 ARCA is an open-source, GIS-native research and engineering initiative for
 transforming authoritative digital-asset representations into lighter,
