@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://doi.org/10.5281/zenodo.23880146" title="TileO DOI (all versions)">
+  <a href="https://doi.org/10.5281/zenodo.23880146" title="ARCA DOI (all versions)">
     <img src="https://zenodo.org/badge/1368304929.svg" alt="Zenodo DOI">
   </a>
 </p>
