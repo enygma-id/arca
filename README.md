@@ -20,6 +20,8 @@
   <a href="https://doi.org/10.5281/zenodo.23880146" title="ARCA DOI (all versions)"><img src="https://zenodo.org/badge/1368304929.svg" alt="Zenodo DOI"></a>
   &nbsp;
   <a href="https://github.com/enygma-id/arca/actions/workflows/ci.yml" title="ARCA CI (main branch)"><img src="https://github.com/enygma-id/arca/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status (main)"></a>
+  &nbsp;
+  <a href="https://scorecard.dev/viewer/?uri=github.com/enygma-id/arca" title="ARCA OpenSSF Security Scorecard"><img src="https://api.scorecard.dev/projects/github.com/enygma-id/arca/badge" alt="OpenSSF Scorecard"></a>
 </p>
 
 
