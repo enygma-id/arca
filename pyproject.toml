@@ -13,7 +13,7 @@ dependencies = [
   "numpy>=2.2.6",
   "shapely>=2.0",
   "pyproj>=3.7.1",
-  "openskp>=1.2.0",
+  "openskp>=1.4.0",
 ]
 
 [project.optional-dependencies]
