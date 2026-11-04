@@ -17,14 +17,11 @@
 </p>
 
 <p align="center">
-  <a href="https://doi.org/10.5281/zenodo.23880146" title="ARCA DOI (all versions)">
-    <img src="https://zenodo.org/badge/1368304929.svg" alt="Zenodo DOI">
-  </a>
+  <a href="https://doi.org/10.5281/zenodo.23880146" title="ARCA DOI (all versions)"><img src="https://zenodo.org/badge/1368304929.svg" alt="Zenodo DOI"></a>
   &nbsp;
-  <a href="https://github.com/enygma-id/arca/actions/workflows/ci.yml" title="ARCA CI (main branch)">
-    <img src="https://github.com/enygma-id/arca/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status (main)">
-  </a>
+  <a href="https://github.com/enygma-id/arca/actions/workflows/ci.yml" title="ARCA CI (main branch)"><img src="https://github.com/enygma-id/arca/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status (main)"></a>
 </p>
+
 
 ARCA is an open-source, GIS-native research and engineering initiative for
 transforming authoritative digital-asset representations into lighter,
