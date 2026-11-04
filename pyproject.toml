@@ -12,7 +12,7 @@ license = "AGPL-3.0-only"
 dependencies = [
   "numpy>=1.24",
   "shapely>=2.0",
-  "pyproj>=3.5",
+  "pyproj>=3.7.1",
   "openskp>=1.2.0",
 ]
 
