@@ -951,8 +951,8 @@ def process_one(
             metadata_info=meta_info,
         )
         _log(progress_cb, f"      SKP Georeference source: {skp_georef['source']}", pct=5)
-        _log(progress_cb, f"      CRS: {skp_georef['crs']}, Anchor: ({skp_georef['longitude']:.8f}, {skp_georef['latitude']:.8f})")
-        _log(progress_cb, f"      UTM Map Origin: E={skp_georef['easting']:.3f}, N={skp_georef['northing']:.3f}")
+        _log(progress_cb, f"      CRS: {skp_georef['crs']}, Anchor: [REDACTED]")
+        _log(progress_cb, "      UTM Map Origin: [REDACTED]")
 
         intermediate_ifc = out_dir / f"{dataset}.ifc"
         convert_skp_to_georef_ifc(
