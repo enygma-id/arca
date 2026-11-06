@@ -215,7 +215,8 @@ class MultipartStreamReader:
 
                 if filename is not None and filename.strip():
                     safe_fn = Path(filename.strip()).name
-                    ext = Path(safe_fn).suffix.lower()
+                    raw_ext = Path(safe_fn).suffix.lower()
+                    ext = raw_ext if re.fullmatch(r"\.[a-z0-9]{1,16}", raw_ext) else ""
                     tf = tempfile.NamedTemporaryFile(dir=self.temp_dir, suffix=ext, delete=False)
                     tmp_path = Path(tf.name)
                     self.created_files.append(tmp_path)
