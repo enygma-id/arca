@@ -155,7 +155,7 @@ arca serve
 Contributors can use the same commands on Windows, Linux, and macOS without activating a shell:
 
 ```sh
-uv sync --extra dev
+uv sync --extra dev --extra server --locked
 uv run arca serve
 
 # Convert a BIM or massing model (IFC, SKP, or ATAP GeoJSON) directly via CLI
