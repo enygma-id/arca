@@ -412,7 +412,10 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Access-Control-Allow-Origin", "*")
         if download_name:
-            safe_name = re.sub(r'[\r\n"\']', '', download_name)
+            safe_name = re.sub(r'[\x00-\x1f\x7f]+', '', download_name)
+            safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', safe_name).strip("._-")
+            if not safe_name:
+                safe_name = "download"
             self.send_header("Content-Disposition", f'attachment; filename="{safe_name}"')
         self.end_headers()
 
