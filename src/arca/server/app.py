@@ -436,7 +436,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             if not safe_name:
                 safe_name = "download"
             encoded_name = quote(safe_name, safe="")
-            self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{encoded_name}")
+            header_filename = re.sub(r'[\r\n\x00-\x1f\x7f]+', '', encoded_name)
+            self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{header_filename}")
         self.end_headers()
 
         if self.command != "HEAD":
