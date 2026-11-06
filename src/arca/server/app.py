@@ -25,7 +25,7 @@ import webbrowser
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from .. import __version__
 
@@ -435,7 +435,8 @@ class StudioRequestHandler(BaseHTTPRequestHandler):
             safe_name = re.sub(r'[^A-Za-z0-9._-]', '_', safe_name).strip("._-")
             if not safe_name:
                 safe_name = "download"
-            self.send_header("Content-Disposition", f'attachment; filename="{safe_name}"')
+            encoded_name = quote(safe_name, safe="")
+            self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{encoded_name}")
         self.end_headers()
 
         if self.command != "HEAD":
