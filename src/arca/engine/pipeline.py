@@ -1067,6 +1067,9 @@ def process_one(
             rotate=rotate,
             metadata=md,
         )
+        for key in ("latitude", "longitude", "center_point_latitude", "center_point_longitude"):
+            if item.get(key) is not None:
+                item[key] = round(float(item[key]), 3)
         write_json(out_dir / "viewer_item.json", item)
     return metadata
 
